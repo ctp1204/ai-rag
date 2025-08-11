@@ -21,7 +21,7 @@ class Settings:
     llm_model: str = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
 
     # Retrieval Settings
-    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
+    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.1"))
     max_retrieved_docs: int = int(os.getenv("MAX_RETRIEVED_DOCS", "5"))
 
     # Server Settings

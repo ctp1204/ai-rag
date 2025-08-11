@@ -1,0 +1,107 @@
+THÔNG TIN VỀ CÔNG TY ABC TECHNOLOGY
+
+1. GIỚI THIỆU CÔNG TY
+Công ty ABC Technology được thành lập năm 2020, chuyên phát triển các giải pháp công nghệ thông tin cho doanh nghiệp. Công ty có trụ sở chính tại Hà Nội và văn phòng chi nhánh tại TP.HCM.
+
+Sứ mệnh: Mang đến những giải pháp công nghệ tiên tiến, giúp doanh nghiệp chuyển đổi số hiệu quả.
+
+Tầm nhìn: Trở thành công ty công nghệ hàng đầu Việt Nam trong lĩnh vực chuyển đổi số.
+
+2. SẢN PHẨM VÀ DỊCH VỤ
+
+2.1 Hệ thống quản lý bán hàng (Sales Management System)
+- Quản lý khách hàng (CRM)
+- Quản lý đơn hàng và báo cáo doanh thu
+- Tích hợp thanh toán online
+- Giá: 5,000,000 VNĐ/năm cho gói cơ bản
+
+2.2 Hệ thống quản lý nhân sự (HR Management System)
+- Quản lý thông tin nhân viên
+- Chấm công và tính lương
+- Quản lý nghỉ phép và đánh giá hiệu suất
+- Giá: 3,000,000 VNĐ/năm cho gói cơ bản
+
+2.3 Ứng dụng di động cho doanh nghiệp
+- Phát triển app iOS và Android
+- Tích hợp với hệ thống backend
+- Bảo trì và cập nhật trong 1 năm
+- Giá: 50,000,000 - 200,000,000 VNĐ tùy độ phức tạp
+
+2.4 Dịch vụ tư vấn chuyển đổi số
+- Phân tích quy trình hiện tại
+- Đề xuất giải pháp công nghệ phù hợp
+- Đào tạo nhân viên sử dụng
+- Giá: 2,000,000 VNĐ/ngày tư vấn
+
+3. THÔNG TIN NHÂN SỰ
+
+Tổng giám đốc: Nguyễn Văn An
+- 15 năm kinh nghiệm trong lĩnh vực IT
+- Tốt nghiệp Thạc sĩ Công nghệ thông tin tại ĐH Bách Khoa Hà Nội
+
+Giám đốc Kỹ thuật: Trần Thị Bình
+- Chuyên gia về AI và Machine Learning
+- 10 năm kinh nghiệm phát triển phần mềm
+
+Giám đốc Kinh doanh: Lê Văn Cường
+- 8 năm kinh nghiệm bán hàng B2B
+- Chuyên về tư vấn giải pháp cho doanh nghiệp
+
+Đội ngũ nhân viên: 45 người
+- 25 lập trình viên
+- 8 nhân viên kinh doanh
+- 5 nhân viên tư vấn
+- 7 nhân viên hỗ trợ khác
+
+4. KHÁCH HÀNG TIÊU BIỂU
+
+4.1 Công ty XYZ Manufacturing
+- Triển khai hệ thống quản lý sản xuất
+- Thời gian: 6 tháng (2023)
+- Giá trị hợp đồng: 150,000,000 VNĐ
+
+4.2 Chuỗi cửa hàng DEF Retail
+- Triển khai hệ thống POS và quản lý kho
+- Thời gian: 4 tháng (2023)
+- Giá trị hợp đồng: 80,000,000 VNĐ
+
+4.3 Ngân hàng GHI Bank
+- Phát triển ứng dụng mobile banking
+- Thời gian: 12 tháng (2022-2023)
+- Giá trị hợp đồng: 500,000,000 VNĐ
+
+5. CHÍNH SÁCH VÀ QUY ĐỊNH
+
+5.1 Chính sách bảo hành
+- Bảo hành phần mềm: 12 tháng
+- Hỗ trợ kỹ thuật 24/7 trong thời gian bảo hành
+- Cập nhật và sửa lỗi miễn phí
+
+5.2 Chính sách thanh toán
+- Thanh toán trước 30% khi ký hợp đồng
+- Thanh toán 50% khi hoàn thành 70% dự án
+- Thanh toán 20% còn lại khi bàn giao và nghiệm thu
+
+5.3 Chính sách đào tạo
+- Đào tạo miễn phí cho 5 nhân viên khách hàng
+- Tài liệu hướng dẫn sử dụng bằng tiếng Việt
+- Hỗ trợ đào tạo bổ sung với phí 500,000 VNĐ/ngày
+
+6. LIÊN HỆ
+
+Địa chỉ trụ sở chính: 123 Đường Láng, Đống Đa, Hà Nội
+Điện thoại: 024-1234-5678
+Email: info@abctech.vn
+Website: www.abctech.vn
+
+Văn phòng TP.HCM: 456 Nguyễn Huệ, Quận 1, TP.HCM
+Điện thoại: 028-9876-5432
+
+Giờ làm việc: 8:00 - 17:30 (Thứ 2 - Thứ 6)
+
+7. THÀNH TÍCH VÀ CHỨNG NHẬN
+
+- Chứng nhận ISO 9001:2015 về quản lý chất lượng
+- Top 10 công ty công nghệ phát triển nhanh nhất 2023
+- Giải thưởng "Sản phẩm công nghệ xuất sắc" năm 2022
+- Đối tác chính thức của Microsoft và Google Cloud Platform
