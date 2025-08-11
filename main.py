@@ -8,6 +8,10 @@ import os
 import sys
 import uvicorn
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file FIRST
+load_dotenv()
 
 # Add src to Python path
 current_dir = Path(__file__).parent
@@ -20,7 +24,14 @@ from config import settings
 def main():
     """Main function to run the RAG system"""
     print("🚀 Starting RAG System...")
-    print(f"📊 Vector Database: {settings.vector_db_type}")
+    db_type = settings.vector_db_type
+    if "pinecone" in db_type.lower():
+        db_display_name = "Pinecone"
+    elif "chroma" in db_type.lower():
+        db_display_name = "ChromaDB"
+    else:
+        db_display_name = "FAISS"
+    print(f"📊 Vector Database: {db_display_name}")
     print(f"🤖 LLM Provider: {settings.llm_provider}")
     print(f"🔗 Server: http://{settings.host}:{settings.port}")
     print("=" * 50)

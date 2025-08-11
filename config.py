@@ -9,7 +9,7 @@ class Settings:
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
 
     # Vector Database
-    vector_db_type: str = os.getenv("VECTOR_DB_TYPE", "faiss")
+    vector_db_type: str = os.getenv("VECTOR_DB_TYPE", "pinecone")
     vector_db_path: str = os.getenv("VECTOR_DB_PATH", "./data/vector_db")
 
     # Document Storage

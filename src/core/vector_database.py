@@ -260,5 +260,8 @@ def create_vector_database() -> VectorDatabase:
         return ChromaVectorDB()
     elif settings.vector_db_type.lower() == "faiss":
         return FAISSVectorDB()
+    elif settings.vector_db_type.lower() == "pinecone":
+        from .pinecone_db import PineconeVectorDB
+        return PineconeVectorDB()
     else:
         raise ValueError(f"Unsupported vector database type: {settings.vector_db_type}")
