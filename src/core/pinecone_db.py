@@ -75,10 +75,15 @@ class PineconeVectorDB(VectorDatabase):
         documents = []
         if results['matches']:
             for match in results['matches']:
+                # Extract the main fields and keep the rest in a 'metadata' sub-dictionary
+                metadata = match.get('metadata', {})
                 doc = {
                     'id': match['id'],
                     'score': match['score'],
-                    **match['metadata']
+                    'text': metadata.pop('text', ''),
+                    'source': metadata.pop('source', ''),
+                    'chunk_index': metadata.pop('chunk_index', -1),
+                    'metadata': metadata  # The rest of the metadata
                 }
                 documents.append(doc)
 
