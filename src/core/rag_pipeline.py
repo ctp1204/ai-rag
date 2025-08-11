@@ -58,6 +58,7 @@ class RAGPipeline:
                 response = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
+                    provider=kwargs.pop('provider', None),
                     **kwargs
                 )
                 response_metadata['source'] = 'local_rag'
@@ -70,6 +71,7 @@ class RAGPipeline:
                 response = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
+                    provider=kwargs.pop('provider', None),
                     **kwargs
                 )
                 response_metadata['used_fallback'] = True

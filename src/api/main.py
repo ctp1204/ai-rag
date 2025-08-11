@@ -28,6 +28,7 @@ rag_pipeline = RAGPipeline()
 class QueryRequest(BaseModel):
     question: str
     use_fallback: bool = True
+    provider: Optional[str] = None
 
 class TextDocumentRequest(BaseModel):
     text: str
@@ -55,7 +56,8 @@ async def query(request: QueryRequest):
     try:
         result = rag_pipeline.query(
             question=request.question,
-            use_fallback=request.use_fallback
+            use_fallback=request.use_fallback,
+            provider=request.provider
         )
         # Lấy nguồn đã được xác định từ pipeline và đưa lên cấp cao nhất
         result['source'] = result.get('metadata', {}).get('source', 'Không xác định')
