@@ -10,78 +10,88 @@ logger = logging.getLogger(__name__)
 
 class RAGPipeline:
     """Main RAG Pipeline kết hợp retrieval và generation"""
-    
-    def __init__(self, retrieval_engine: Optional[RetrievalEngine] = None, 
+
+    def __init__(self, retrieval_engine: Optional[RetrievalEngine] = None,
                  llm_manager: Optional[LLMManager] = None):
         self.retrieval_engine = retrieval_engine or RetrievalEngine()
         self.llm_manager = llm_manager or LLMManager()
-        
+
         if not self.llm_manager.is_available():
             logger.warning("No LLM clients available. Please configure API keys.")
-    
+
     def query(self, question: str, use_fallback: bool = True, **kwargs) -> Dict[str, Any]:
         """
         Main query method với logic fallback
-        
+
         Args:
             question: Câu hỏi từ user
             use_fallback: Có sử dụng LLM API khi không tìm thấy dữ liệu local không
             **kwargs: Các tham số khác cho LLM
-        
+
         Returns:
             Dict chứa response và metadata
         """
         logger.info(f"Processing query: {question}")
-        
+
         # Bước 1: Tìm kiếm thông tin liên quan trong database local
-        relevant_context = self.retrieval_engine.get_relevant_context(question)
-        has_local_data = bool(relevant_context.strip())
-        
+        # Bước 1: Tìm kiếm tài liệu liên quan, đã có filter theo score bên trong search()
+        found_documents = self.retrieval_engine.search(question)
+
+        has_local_data = bool(found_documents)
+
         response_metadata = {
             'has_local_data': has_local_data,
-            'used_fallback': False,
-            'source': 'local' if has_local_data else 'none'
+            'used_fallback': not has_local_data and use_fallback,
+            'source_documents': found_documents
         }
-        
+
         try:
             if has_local_data:
                 # Có dữ liệu local -> sử dụng RAG với context
-                logger.info("Found relevant local data, generating response with context")
+                logger.info(f"Found {len(found_documents)} relevant documents, generating response with context")
+
+                relevant_context = "\n\n".join([
+                    f"[Nguồn: {doc.get('source', 'Không rõ')}]\n{doc['text']}"
+                    for doc in found_documents
+                ])
+
                 response = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
                     **kwargs
                 )
                 response_metadata['source'] = 'local_rag'
-                
+
             elif use_fallback and self.llm_manager.is_available():
                 # Không có dữ liệu local -> fallback to LLM API
                 logger.info("No relevant local data found, using fallback LLM")
+
+                relevant_context = "" # Đảm bảo context rỗng
                 response = self.llm_manager.generate_response(
                     prompt=question,
-                    context="",
+                    context=relevant_context,
                     **kwargs
                 )
                 response_metadata['used_fallback'] = True
                 response_metadata['source'] = 'fallback_llm'
-                
+
             else:
                 # Không có dữ liệu và không dùng fallback
                 response = self._generate_no_data_response(question)
                 response_metadata['source'] = 'no_data'
-        
+
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
             response = f"Xin lỗi, đã có lỗi xảy ra khi xử lý câu hỏi của bạn: {str(e)}"
             response_metadata['error'] = str(e)
             response_metadata['source'] = 'error'
-        
+
         return {
             'response': response,
             'metadata': response_metadata,
             'context': relevant_context if has_local_data else None
         }
-    
+
     def _generate_no_data_response(self, question: str) -> str:
         """Tạo response khi không có dữ liệu và không dùng fallback"""
         return f"""Xin lỗi, tôi không tìm thấy thông tin liên quan đến câu hỏi "{question}" trong cơ sở dữ liệu của mình.
@@ -90,7 +100,7 @@ class RAGPipeline:
 1. Thêm tài liệu liên quan vào hệ thống
 2. Kiểm tra lại cách đặt câu hỏi
 3. Bật chế độ fallback để tôi có thể sử dụng kiến thức tổng quát"""
-    
+
     def add_document_from_file(self, file_path: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Thêm document từ file"""
         try:
@@ -108,8 +118,8 @@ class RAGPipeline:
                 'error': str(e),
                 'file_path': file_path
             }
-    
-    def add_document_from_text(self, text: str, source: str = "direct_input", 
+
+    def add_document_from_text(self, text: str, source: str = "direct_input",
                               metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Thêm document từ text"""
         try:
@@ -127,15 +137,15 @@ class RAGPipeline:
                 'error': str(e),
                 'source': source
             }
-    
+
     def get_database_info(self) -> Dict[str, Any]:
         """Lấy thông tin về database"""
         return self.retrieval_engine.get_database_stats()
-    
+
     def search_documents(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
         """Tìm kiếm documents (để debug/admin)"""
         return self.retrieval_engine.search(query, k)
-    
+
     def delete_document(self, doc_id: str) -> Dict[str, Any]:
         """Xóa document"""
         try:
@@ -145,7 +155,7 @@ class RAGPipeline:
         except Exception as e:
             logger.error(f"Error deleting document {doc_id}: {str(e)}")
             return {'success': False, 'error': str(e), 'doc_id': doc_id}
-    
+
     def clear_database(self) -> Dict[str, Any]:
         """Xóa toàn bộ database"""
         try:
@@ -155,7 +165,7 @@ class RAGPipeline:
         except Exception as e:
             logger.error(f"Error clearing database: {str(e)}")
             return {'success': False, 'error': str(e)}
-    
+
     def health_check(self) -> Dict[str, Any]:
         """Kiểm tra tình trạng hệ thống"""
         return {

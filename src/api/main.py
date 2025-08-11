@@ -45,7 +45,7 @@ async def admin(request: Request):
     """Trang admin để quản lý documents"""
     db_info = rag_pipeline.get_database_info()
     return templates.TemplateResponse("admin.html", {
-        "request": request, 
+        "request": request,
         "db_info": db_info
     })
 
@@ -57,6 +57,8 @@ async def query(request: QueryRequest):
             question=request.question,
             use_fallback=request.use_fallback
         )
+        # Lấy nguồn đã được xác định từ pipeline và đưa lên cấp cao nhất
+        result['source'] = result.get('metadata', {}).get('source', 'Không xác định')
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -68,26 +70,26 @@ async def upload_file(file: UploadFile = File(...), title: str = Form(None)):
         # Kiểm tra file type
         allowed_extensions = ['.txt', '.pdf', '.docx']
         file_extension = os.path.splitext(file.filename)[1].lower()
-        
+
         if file_extension not in allowed_extensions:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"File type not supported. Allowed: {', '.join(allowed_extensions)}"
             )
-        
+
         # Lưu file tạm thời
         os.makedirs(settings.documents_path, exist_ok=True)
         file_path = os.path.join(settings.documents_path, file.filename)
-        
+
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
+
         # Xử lý file với RAG pipeline
         metadata = {"title": title or file.filename, "uploaded_via": "web"}
         result = rag_pipeline.add_document_from_file(file_path, metadata)
-        
+
         return result
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
