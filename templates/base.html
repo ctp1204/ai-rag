@@ -14,20 +14,32 @@
             padding: 15px;
             background-color: #f8f9fa;
         }
+        .chat-container::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
         .message {
             margin-bottom: 15px;
             padding: 10px;
             border-radius: 10px;
+            clear: both;
+            word-wrap: break-word;
+            max-width: 100%;
         }
         .user-message {
             background-color: #007bff;
             color: white;
             margin-left: 20%;
+            float: right;
+            clear: both;
         }
         .bot-message {
             background-color: white;
             border: 1px solid #ddd;
             margin-right: 20%;
+            float: left;
+            clear: both;
         }
         .metadata {
             font-size: 0.8em;

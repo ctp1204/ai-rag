@@ -124,7 +124,7 @@ function sendMessage() {
     addMessageToChat('user', question);
     $('#question-input').val('');
 
-    // Show loading
+    // Show loading message for bot
     const loadingId = addMessageToChat('bot', '<i class="fas fa-spinner fa-spin"></i> Đang suy nghĩ...');
 
     // Send request
@@ -137,10 +137,14 @@ function sendMessage() {
             use_fallback: useFallback
         }),
         success: function(data) {
-            updateMessage(loadingId, data.response, data.metadata);
+            // Remove loading message and add new response
+            $('#' + loadingId).remove();
+            addMessageToChat('bot', data.response, data.metadata);
         },
         error: function(xhr) {
-            updateMessage(loadingId, 'Xin lỗi, đã có lỗi xảy ra: ' + xhr.responseJSON.detail);
+            // Remove loading message and add error
+            $('#' + loadingId).remove();
+            addMessageToChat('bot', 'Xin lỗi, đã có lỗi xảy ra: ' + (xhr.responseJSON?.detail || 'Lỗi không xác định'));
         }
     });
 }
@@ -217,7 +221,7 @@ function addText() {
 }
 
 function addMessageToChat(sender, message, metadata = null) {
-    const messageId = 'msg-' + Date.now();
+    const messageId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
     const senderName = sender === 'user' ? 'Bạn' : 'AI Assistant';
 
@@ -238,32 +242,21 @@ function addMessageToChat(sender, message, metadata = null) {
             <strong>${senderName}:</strong> ${message}
             ${metadataHtml}
         </div>
+        <div style="clear: both;"></div>
     `;
 
     $('#chat-container').append(messageHtml);
-    $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+
+    // Scroll to bottom with a small delay to ensure rendering
+    setTimeout(() => {
+        const container = $('#chat-container')[0];
+        container.scrollTop = container.scrollHeight;
+    }, 100);
 
     return messageId;
 }
 
-function updateMessage(messageId, newMessage, metadata = null) {
-    const messageElement = $('#' + messageId);
-    const sender = messageElement.hasClass('user-message') ? 'Bạn' : 'AI Assistant';
 
-    let metadataHtml = '';
-    if (metadata) {
-        const source = metadata.source || 'unknown';
-        const sourceText = {
-            'local_rag': 'Dữ liệu local',
-            'fallback_llm': 'AI tổng quát',
-            'no_data': 'Không có dữ liệu'
-        }[source] || source;
-
-        metadataHtml = `<div class="metadata">Nguồn: ${sourceText}</div>`;
-    }
-
-    messageElement.html(`<strong>${sender}:</strong> ${newMessage}${metadataHtml}`);
-}
 
 function loadDatabaseInfo() {
     $.ajax({
