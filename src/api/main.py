@@ -12,6 +12,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from src.core.rag_pipeline import RAGPipeline
+from src.core.qa_generator import QAGenerator
 from config import settings
 
 # Initialize FastAPI app
@@ -24,6 +25,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Initialize RAG pipeline
 rag_pipeline = RAGPipeline()
 
+# Initialize QA Generator
+qa_generator = QAGenerator(rag_pipeline.retrieval_engine, rag_pipeline.llm_manager)
+
+# Store for temporary question sessions
+question_sessions = {}
+
 # Pydantic models
 class QueryRequest(BaseModel):
     question: str
@@ -35,11 +42,20 @@ class TextDocumentRequest(BaseModel):
     source: str = "web_input"
     title: Optional[str] = None
 
+class QAEvaluationRequest(BaseModel):
+    session_id: str
+    user_answers: List[str]
+
 # Routes
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Trang chủ"""
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/qa", response_class=HTMLResponse)
+async def qa_page(request: Request):
+    """Trang Q&A học tập"""
+    return templates.TemplateResponse("qa.html", {"request": request})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
@@ -145,6 +161,75 @@ async def clear_database():
 async def health_check():
     """Health check"""
     return rag_pipeline.health_check()
+
+@app.get("/api/qa/generate")
+async def generate_questions(num_questions: int = 3):
+    """Tạo câu hỏi cho bài kiểm tra từ dữ liệu thực trong Pinecone"""
+    try:
+        if num_questions < 1 or num_questions > 10:
+            raise HTTPException(status_code=400, detail="Số câu hỏi phải từ 1 đến 10")
+
+        # Tạo câu hỏi từ dữ liệu thực
+        questions = qa_generator.generate_questions(num_questions)
+
+        # Tạo session ID để lưu trữ câu hỏi
+        import uuid
+        session_id = str(uuid.uuid4())
+
+        # Lưu câu hỏi đầy đủ vào session
+        question_sessions[session_id] = questions
+
+        # Chỉ trả về câu hỏi, không trả về đáp án
+        response_questions = []
+        for q in questions:
+            response_questions.append({
+                'id': q['id'],
+                'question': q['question'],
+                'type': q['type'],
+                'source': q.get('source_doc', {}).get('source', 'Unknown') if q.get('source_doc') else 'System'
+            })
+
+        return {
+            'session_id': session_id,
+            'questions': response_questions,
+            'total': len(response_questions),
+            'data_source': 'pinecone_real_data'
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/qa/evaluate")
+async def evaluate_answers(request: QAEvaluationRequest):
+    """Đánh giá câu trả lời của user dựa trên dữ liệu thực"""
+    try:
+        # Lấy câu hỏi từ session
+        if request.session_id not in question_sessions:
+            raise HTTPException(status_code=404, detail="Session không tồn tại hoặc đã hết hạn")
+
+        questions = question_sessions[request.session_id]
+
+        if len(questions) != len(request.user_answers):
+            raise HTTPException(status_code=400, detail="Số câu trả lời không khớp với số câu hỏi")
+
+        # Đánh giá câu trả lời
+        evaluation = qa_generator.evaluate_answers(questions, request.user_answers)
+
+        # Thêm thông tin về nguồn dữ liệu
+        evaluation['data_info'] = {
+            'total_questions': len(questions),
+            'questions_from_real_data': len([q for q in questions if q['type'] in ['extracted_from_data', 'real_data']]),
+            'questions_from_llm': len([q for q in questions if q['type'] == 'generated']),
+            'questions_fallback': len([q for q in questions if q['type'] == 'fallback'])
+        }
+
+        # Xóa session sau khi đánh giá (optional)
+        # del question_sessions[request.session_id]
+
+        return evaluation
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

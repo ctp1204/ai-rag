@@ -11,8 +11,8 @@ from config import settings
 class DocumentProcessor:
     def __init__(self):
         self.embedding_model = SentenceTransformer(settings.embedding_model)
-        self.chunk_size = 100  # Kích thước chunk text (số từ)
-        self.chunk_overlap = 20  # Overlap giữa các chunk
+        self.chunk_size = 600  # Kích thước chunk text (số từ)
+        self.chunk_overlap = 80  # Overlap giữa các chunk
 
     def extract_text_from_file(self, file_path: str) -> str:
         """Trích xuất text từ file (PDF, DOCX, TXT)"""
