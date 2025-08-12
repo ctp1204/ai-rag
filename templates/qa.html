@@ -42,9 +42,15 @@
                         <!-- Questions will be loaded here -->
                     </div>
 
-                    <div class="mt-4 text-center">
+                    <div class="mt-4 d-flex justify-content-between" id="navigation-controls" style="display: none;">
+                        <button class="btn btn-secondary" id="prev-btn">
+                            <i class="fas fa-arrow-left"></i> Quay lại
+                        </button>
+                        <button class="btn btn-primary" id="next-btn">
+                            Tiếp theo <i class="fas fa-arrow-right"></i>
+                        </button>
                         <button class="btn btn-success btn-lg" id="submit-quiz-btn" style="display: none;">
-                            <i class="fas fa-check"></i> Kết thúc buổi học
+                            <i class="fas fa-check"></i> Nộp bài
                         </button>
                     </div>
                 </div>
@@ -145,8 +151,9 @@ function startQuiz() {
                 console.log('✅ Câu hỏi được tạo từ dữ liệu thực trong Pinecone');
             }
 
-            displayQuestions();
+            showQuestion(currentQuestionIndex);
             showScreen('quiz-screen');
+            $('#navigation-controls').show();
             updateProgress();
         },
         error: function(xhr) {
@@ -156,34 +163,33 @@ function startQuiz() {
     });
 }
 
-function displayQuestions() {
-    let html = '';
+function showQuestion(index) {
+    const question = currentQuestions[index];
+    let sourceInfo = '';
+    if (question.source && question.source !== 'Unknown' && question.source !== 'System') {
+        sourceInfo = `<small class="text-muted">📄 Nguồn: ${question.source}</small>`;
+    }
 
-    currentQuestions.forEach((question, index) => {
-        // Show source info if available
-        let sourceInfo = '';
-        if (question.source && question.source !== 'Unknown' && question.source !== 'System') {
-            sourceInfo = `<small class="text-muted">📄 Nguồn: ${question.source}</small>`;
-        }
-
-        html += `
-            <div class="question-item mb-4 p-3 border rounded">
-                <h6 class="text-primary">Câu ${index + 1}:</h6>
-                <p class="fw-bold">${question.question}</p>
-                ${sourceInfo}
-                <textarea
-                    class="form-control mt-2"
-                    rows="3"
-                    placeholder="Nhập câu trả lời của bạn..."
-                    data-question-index="${index}"
-                    onchange="updateAnswer(${index}, this.value)"
-                ></textarea>
-            </div>
-        `;
-    });
+    const html = `
+        <div class="question-item mb-4 p-3 border rounded">
+            <h6 class="text-primary">Câu ${index + 1} / ${currentQuestions.length}:</h6>
+            <p class="fw-bold fs-5">${question.question}</p>
+            ${sourceInfo}
+            <textarea
+                class="form-control mt-2"
+                rows="4"
+                placeholder="Nhập câu trả lời của bạn..."
+                onchange="updateAnswer(${index}, this.value)"
+            >${userAnswers[index] || ''}</textarea>
+        </div>
+    `;
 
     $('#questions-container').html(html);
-    $('#submit-quiz-btn').show();
+
+    // Update navigation buttons
+    $('#prev-btn').prop('disabled', index === 0);
+    $('#next-btn').toggle(index < currentQuestions.length - 1);
+    $('#submit-quiz-btn').toggle(index === currentQuestions.length - 1);
 }
 
 function updateAnswer(index, value) {
@@ -192,16 +198,9 @@ function updateAnswer(index, value) {
 }
 
 function updateProgress() {
-    const answeredCount = userAnswers.filter(answer => answer.trim() !== '').length;
-    const progress = (answeredCount / currentQuestions.length) * 100;
-    $('#progress-bar').css('width', progress + '%');
-
-    // Enable submit button if all questions answered
-    if (answeredCount === currentQuestions.length) {
-        $('#submit-quiz-btn').prop('disabled', false);
-    } else {
-        $('#submit-quiz-btn').prop('disabled', true);
-    }
+    // Progress is based on the current question number
+    const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
+    $('#progress-bar').css('width', progress + '%').text(`Câu ${currentQuestionIndex + 1}/${currentQuestions.length}`);
 }
 
 function submitQuiz() {
@@ -283,5 +282,22 @@ function restartQuiz() {
     sessionId = null;
     showScreen('start-screen');
 }
+
+// Navigation logic
+$('#next-btn').click(function() {
+    if (currentQuestionIndex < currentQuestions.length - 1) {
+        currentQuestionIndex++;
+        showQuestion(currentQuestionIndex);
+        updateProgress();
+    }
+});
+
+$('#prev-btn').click(function() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        showQuestion(currentQuestionIndex);
+        updateProgress();
+    }
+});
 </script>
 {% endblock %}
