@@ -1,0 +1,141 @@
+Chủ đề: Mạng máy tính (Networking) - Cơ bản
+
+Câu hỏi: DNS là gì và nó hoạt động như thế nào?
+Trả lời: DNS (Domain Name System) là hệ thống dịch tên miền (vd: google.com) thành địa chỉ IP (vd: 8.8.8.8) để máy tính có thể giao tiếp. Quá trình này bao gồm các bước truy vấn từ DNS Resolver của người dùng đến các máy chủ Root, TLD và Authoritative.
+
+Câu hỏi: Sự khác biệt giữa TCP và UDP là gì?
+Trả lời: TCP (Transmission Control Protocol) là giao thức hướng kết nối, đảm bảo truyền dữ liệu tin cậy, đúng thứ tự. UDP (User Datagram Protocol) là giao thức không kết nối, nhanh hơn nhưng không đảm bảo tin cậy. TCP dùng cho web/email, UDP dùng cho game/streaming.
+
+Câu hỏi: Mô hình OSI có bao nhiêu lớp?
+Trả lời: Mô hình OSI có 7 lớp: Physical, Data Link, Network, Transport, Session, Presentation, và Application.
+
+Câu hỏi: Địa chỉ IP private là gì?
+Trả lời: Là các dải địa chỉ IP được dành riêng cho mạng nội bộ (LAN) và không thể định tuyến trên Internet công cộng. Các dải này bao gồm 10.0.0.0/8, 172.16.0.0/12, và 192.168.0.0/16.
+
+Câu hỏi: DHCP là gì?
+Trả lời: DHCP (Dynamic Host Configuration Protocol) là giao thức tự động cấp phát địa chỉ IP và các thông tin cấu hình mạng khác (như subnet mask, default gateway, DNS server) cho các thiết bị trong mạng.
+
+---
+Chủ đề: Mạng máy tính (Networking) - Nâng cao
+
+Câu hỏi: BGP là gì?
+Trả lời: BGP (Border Gateway Protocol) là giao thức định tuyến được sử dụng trên Internet để trao đổi thông tin định tuyến giữa các hệ thống tự trị (Autonomous Systems - AS). Nó quyết định đường đi tốt nhất cho lưu lượng Internet.
+
+Câu hỏi: Sự khác biệt giữa OSPF và EIGRP?
+Trả lời: OSPF (Open Shortest Path First) là một giao thức định tuyến link-state, là một chuẩn mở. EIGRP (Enhanced Interior Gateway Routing Protocol) là một giao thức distance-vector nâng cao, độc quyền của Cisco. EIGRP hội tụ nhanh hơn nhưng OSPF phổ biến hơn trong môi trường đa nhà cung cấp.
+
+Câu hỏi: NAT là gì?
+Trả lời: NAT (Network Address Translation) là kỹ thuật cho phép nhiều thiết bị trong mạng LAN chia sẻ một địa chỉ IP công cộng duy nhất để truy cập Internet, giúp tiết kiệm địa chỉ IPv4 và tăng cường bảo mật.
+
+Câu hỏi: VLAN là gì và lợi ích của nó?
+Trả lời: VLAN (Virtual LAN) cho phép tạo ra các mạng logic độc lập trên cùng một hạ tầng mạng vật lý. Lợi ích của nó bao gồm cải thiện hiệu suất, tăng cường bảo mật, và đơn giản hóa quản lý mạng.
+
+Câu hỏi: QoS là gì?
+Trả lời: QoS (Quality of Service) là tập hợp các công nghệ dùng để quản lý lưu lượng mạng nhằm đảm bảo hiệu suất cho các ứng dụng quan trọng bằng cách ưu tiên băng thông, kiểm soát độ trễ và jitter.
+
+---
+Chủ đề: Hệ điều hành - Cơ bản
+
+Câu hỏi: Kernel là gì?
+Trả lời: Kernel (nhân) là thành phần cốt lõi của một hệ điều hành, có quyền kiểm soát toàn bộ hệ thống. Nó quản lý tài nguyên phần cứng và cung cấp các dịch vụ cơ bản cho các phần còn lại của hệ điều hành.
+
+Câu hỏi: Sự khác biệt giữa process và thread?
+Trả lời: Một process là một chương trình đang được thực thi, có không gian bộ nhớ riêng. Một thread là một đơn vị thực thi nhỏ nhất trong một process. Nhiều thread có thể tồn tại trong cùng một process và chia sẻ chung không gian bộ nhớ, giúp thực hiện các tác vụ đồng thời.
+
+Câu hỏi: Deadlock là gì?
+Trả lời: Deadlock (khóa chết) là tình huống trong đó hai hoặc nhiều process đang chờ đợi tài nguyên mà process khác đang giữ, và không process nào có thể tiếp tục, tạo ra một vòng lặp chờ đợi vô tận.
+
+Câu hỏi: Bộ nhớ ảo (Virtual Memory) là gì?
+Trả lời: Là một kỹ thuật quản lý bộ nhớ cho phép hệ điều hành sử dụng ổ cứng như một phần của RAM. Điều này cho phép chạy các chương trình lớn hơn bộ nhớ vật lý có sẵn.
+
+---
+Chủ đề: Hệ điều hành - Nâng cao
+
+Câu hỏi: Cơ chế scheduling trong hệ điều hành là gì?
+Trả lời: Là cơ chế mà bộ xử lý (CPU) quyết định process nào sẽ được thực thi tiếp theo. Các thuật toán scheduling phổ biến bao gồm FCFS, SJF, Round Robin, và Priority Scheduling.
+
+Câu hỏi: System call là gì?
+Trả lời: Là cách một chương trình yêu cầu một dịch vụ từ kernel của hệ điều hành, ví dụ như đọc/ghi file, tạo process mới.
+
+Câu hỏi: Sự khác biệt giữa Ext4 và NTFS?
+Trả lời: Ext4 là hệ thống file mặc định cho nhiều bản phân phối Linux, nổi bật với sự ổn định và hiệu suất tốt. NTFS là hệ thống file mặc định của Windows, hỗ trợ các tính năng như nén file, mã hóa, và phân quyền chi tiết.
+
+Câu-hỏi: RAID là gì?
+Trả-lời: RAID (Redundant Array of Independent Disks) là công nghệ kết hợp nhiều ổ đĩa vật lý thành một đơn vị logic duy nhất để tăng hiệu suất, độ tin cậy hoặc cả hai.
+
+---
+Chủ đề: Lập trình - Cơ bản & OOP
+
+Câu hỏi: Lập trình hướng đối tượng (OOP) là gì?
+Trả lời: OOP là mô hình lập trình dựa trên "đối tượng", kết hợp dữ liệu (thuộc tính) và hành vi (phương thức). Bốn nguyên tắc chính là Đóng gói, Kế thừa, Đa hình, và Trừu tượng.
+
+Câu hỏi: Sự khác biệt giữa lớp (class) và đối tượng (object)?
+Trả lời: Lớp là một bản thiết kế hoặc khuôn mẫu để tạo ra các đối tượng. Đối tượng là một thể hiện cụ thể của một lớp, có trạng thái và hành vi riêng.
+
+Câu hỏi: Interface và Abstract Class khác nhau như thế nào?
+Trả lời: Cả hai đều không thể tạo thể hiện trực tiếp. Abstract Class có thể chứa cả phương thức trừu tượng và phương thức đã được triển khai, cùng với các thuộc tính. Interface chỉ chứa các định nghĩa phương thức (và hằng số), và một lớp có thể implement nhiều interface nhưng chỉ có thể kế thừa từ một abstract class.
+
+Câu hỏi: SOLID là gì?
+Trả lời: SOLID là 5 nguyên tắc thiết kế giúp code dễ bảo trì và mở rộng: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion.
+
+---
+Chủ đề: Lập trình - Nâng cao & Design Patterns
+
+Câu hỏi: Concurrency và Parallelism khác nhau như thế nào?
+Trả lời: Concurrency (đồng thời) là việc xử lý nhiều tác vụ cùng một lúc, nhưng không nhất thiết phải chạy song song. Parallelism (song song) là việc thực sự chạy nhiều tác vụ cùng một thời điểm, đòi hỏi nhiều hơn một lõi CPU.
+
+Câu hỏi: Garbage Collection là gì?
+Trả lời: Là một hình thức quản lý bộ nhớ tự động, trong đó "bộ dọn rác" sẽ cố gắng thu hồi bộ nhớ đã được cấp phát nhưng không còn được sử dụng bởi chương trình nữa.
+
+Câu hỏi: Singleton Pattern là gì?
+Trả lời: Là một mẫu thiết kế đảm bảo rằng một lớp chỉ có một thể hiện duy nhất và cung cấp một điểm truy cập toàn cục đến thể hiện đó.
+
+Câu hỏi: Factory Pattern là gì?
+Trả lời: Là một mẫu thiết kế sử dụng các phương thức "factory" để tạo đối tượng mà không cần chỉ định chính xác lớp của đối tượng sẽ được tạo.
+
+Câu hỏi: Observer Pattern là gì?
+Trả lời: Là một mẫu thiết kế trong đó một đối tượng (subject) duy trì một danh sách các đối tượng phụ thuộc nó (observers) và tự động thông báo cho chúng về bất kỳ thay đổi trạng thái nào.
+
+---
+Chủ đề: Cơ sở dữ liệu - Nâng cao
+
+Câu hỏi: Sharding và Replication trong CSDL là gì?
+Trả lời: Replication là việc sao chép dữ liệu qua nhiều máy chủ để tăng độ sẵn sàng và khả năng đọc. Sharding là việc phân chia dữ liệu theo chiều ngang qua nhiều máy chủ, mỗi máy chủ chứa một phần dữ liệu, để tăng khả năng ghi và mở rộng quy mô.
+
+Câu hỏi: Tối ưu hóa truy vấn (Query Optimization) là gì?
+Trả lời: Là quá trình mà công cụ CSDL lựa chọn kế hoạch thực thi hiệu quả nhất cho một câu lệnh SQL. Các kỹ thuật bao gồm sử dụng index, viết lại truy vấn, và phân tích thống kê.
+
+Câu hỏi: ACID và BASE là gì?
+Trả lời: ACID (Atomicity, Consistency, Isolation, Durability) là các thuộc tính đảm bảo tính toàn vẹn của transaction trong CSDL quan hệ. BASE (Basically Available, Soft state, Eventually consistent) là một mô hình nhất quán thường được sử dụng trong các hệ thống NoSQL, ưu tiên tính sẵn sàng hơn là tính nhất quán tức thời.
+
+---
+Chủ đề: An ninh mạng (Cybersecurity)
+
+Câu hỏi: Tấn công Man-in-the-Middle (MITM) là gì?
+Trả lời: Là kiểu tấn công mà kẻ tấn công bí mật chặn và có thể thay đổi giao tiếp giữa hai bên mà họ không hề hay biết, nhằm đánh cắp thông tin.
+
+Câu hỏi: Tấn công DDoS là gì?
+Trả lời: DDoS (Distributed Denial-of-Service) là kiểu tấn công từ chối dịch vụ phân tán, trong đó kẻ tấn công sử dụng một mạng lưới lớn các máy tính (botnet) để làm quá tải một máy chủ hoặc mạng với lưu lượng truy cập, khiến nó không thể phục vụ người dùng hợp lệ.
+
+Câu hỏi: OWASP Top 10 là gì?
+Trả lời: Là một tài liệu nhận thức tiêu chuẩn dành cho các nhà phát triển và chuyên gia bảo mật web, đại diện cho một sự đồng thuận rộng rãi về các rủi ro bảo mật nghiêm trọng nhất đối với các ứng dụng web.
+
+Câu hỏi: Hashing và Encryption khác nhau như thế nào?
+Trả lời: Encryption là một quá trình hai chiều, dữ liệu được mã hóa và có thể được giải mã trở lại dạng ban đầu bằng một khóa. Hashing là một quá trình một chiều, chuyển đổi dữ liệu thành một chuỗi có độ dài cố định và không thể đảo ngược. Hashing dùng để xác minh tính toàn vẹn, còn encryption dùng để bảo mật dữ liệu.
+
+---
+Chủ đề: AI & Machine Learning
+
+Câu hỏi: Reinforcement Learning là gì?
+Trả lời: Là một lĩnh vực của học máy, trong đó một "agent" học cách hành xử trong một môi trường bằng cách thực hiện các hành động và nhận phản hồi dưới dạng phần thưởng hoặc hình phạt.
+
+Câu hỏi: Neural Network là gì?
+Trả lời: Là một mô hình tính toán lấy cảm hứng từ bộ não sinh học, bao gồm các "neuron" nhân tạo được kết nối với nhau theo các lớp. Nó được sử dụng để nhận dạng các mẫu phức tạp trong dữ liệu.
+
+Câu hỏi: Sự khác biệt giữa
+Trả lời:
+- Precision (Độ chính xác): Trong số tất cả các dự đoán là "dương tính", có bao nhiêu là đúng thực sự? (TP / (TP + FP))
+- Recall (Độ phủ): Trong số tất cả các trường hợp "dương tính" thực tế, mô hình đã tìm thấy được bao nhiêu? (TP / (TP + FN))
+
+Câu hỏi: Gradient Descent là gì?
+Trả lời: Là một thuật toán tối ưu hóa lặp đi lặp lại được sử dụng để tìm giá trị cực tiểu của một hàm. Trong học máy, nó được sử dụng để cập nhật các tham số của mô hình nhằm giảm thiểu hàm mất mát (loss function).

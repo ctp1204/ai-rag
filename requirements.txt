@@ -35,3 +35,6 @@ pinecone
 python-dotenv
 
 google-generativeai
+
+thefuzz
+python-Levenshtein
