@@ -38,3 +38,4 @@ google-generativeai
 
 thefuzz
 python-Levenshtein
+itsdangerous

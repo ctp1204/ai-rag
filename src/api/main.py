@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 import os
 import shutil
 from typing import Optional, List
@@ -13,10 +14,16 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from src.core.rag_pipeline import RAGPipeline
 from src.core.qa_generator import QAGenerator
+from src.core import database as db
 from config import settings
 
 # Initialize FastAPI app
 app = FastAPI(title="RAG System", description="Retrieval-Augmented Generation System")
+secret = os.getenv("SECRET_KEY", "default-secret-key")
+app.add_middleware(SessionMiddleware, secret_key=secret)
+
+# Initialize database
+db.init_db()
 
 # Setup templates and static files
 templates = Jinja2Templates(directory="templates")
@@ -46,25 +53,64 @@ class QAEvaluationRequest(BaseModel):
     session_id: str
     user_answers: List[str]
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+
 # Routes
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Trang chủ"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    user = request.session.get('user')
+    return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 @app.get("/qa", response_class=HTMLResponse)
 async def qa_page(request: Request):
     """Trang Q&A học tập"""
-    return templates.TemplateResponse("qa.html", {"request": request})
+    user = request.session.get('user')
+    return templates.TemplateResponse("qa.html", {"request": request, "user": user})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
     """Trang admin để quản lý documents"""
+    user = request.session.get('user')
     db_info = rag_pipeline.get_database_info()
     return templates.TemplateResponse("admin.html", {
         "request": request,
-        "db_info": db_info
+        "db_info": db_info,
+        "user": user
     })
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Trang đăng nhập"""
+    user = request.session.get('user')
+    return templates.TemplateResponse("login.html", {"request": request, "user": user})
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    """Trang đăng ký"""
+    user = request.session.get('user')
+    return templates.TemplateResponse("register.html", {"request": request, "user": user})
+
+@app.get("/history", response_class=HTMLResponse)
+async def history_page(request: Request):
+    """Trang lịch sử học tập"""
+    user_session = request.session.get('user')
+    if not user_session:
+        return templates.TemplateResponse("login.html", {"request": request, "user": None})
+
+    user_db = db.get_user(user_session)
+    if not user_db:
+        # This case should ideally not happen if session is managed properly
+        return templates.TemplateResponse("login.html", {"request": request, "user": None})
+
+    history = db.get_user_qa_history(user_db['id'])
+    return templates.TemplateResponse("history.html", {"request": request, "user": user_session, "history": history})
 
 @app.post("/api/query")
 async def query(request: QueryRequest):
@@ -199,9 +245,17 @@ async def generate_questions(num_questions: int = 3):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/qa/evaluate")
-async def evaluate_answers(request: QAEvaluationRequest):
+async def evaluate_answers(req: Request, request: QAEvaluationRequest):
     """Đánh giá câu trả lời của user dựa trên dữ liệu thực"""
     try:
+        user_session = req.session.get('user')
+        if not user_session:
+            raise HTTPException(status_code=401, detail="Vui lòng đăng nhập để thực hiện chức năng này")
+
+        user_db = db.get_user(user_session)
+        if not user_db:
+            raise HTTPException(status_code=401, detail="User không tồn tại")
+
         # Lấy câu hỏi từ session
         if request.session_id not in question_sessions:
             raise HTTPException(status_code=404, detail="Session không tồn tại hoặc đã hết hạn")
@@ -222,6 +276,9 @@ async def evaluate_answers(request: QAEvaluationRequest):
             'questions_fallback': len([q for q in questions if q['type'] == 'fallback'])
         }
 
+        # Lưu lịch sử
+        db.add_qa_history(user_db['id'], evaluation)
+
         # Xóa session sau khi đánh giá (optional)
         # del question_sessions[request.session_id]
 
@@ -230,6 +287,38 @@ async def evaluate_answers(request: QAEvaluationRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/login")
+async def login(request: Request, login_request: LoginRequest):
+    """API endpoint để đăng nhập"""
+    user = db.get_user(login_request.username)
+    # In a real app, you'd use hashed passwords
+    if not user or not user["password"] == login_request.password:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    request.session['user'] = login_request.username
+    return {"message": "Login successful"}
+
+@app.post("/api/register")
+async def register(register_request: RegisterRequest):
+    """API endpoint để đăng ký"""
+    # In a real app, hash the password
+    success = db.add_user(register_request.username, register_request.password)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already exists"
+        )
+    return {"message": "User created successfully"}
+
+@app.get("/api/logout")
+async def logout(request: Request):
+    """API endpoint để đăng xuất"""
+    request.session.pop('user', None)
+    return {"message": "Logout successful"}
 
 if __name__ == "__main__":
     import uvicorn
