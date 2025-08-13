@@ -235,6 +235,9 @@ function addMessageToChat(sender, message, metadata = null) {
     const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
     const senderName = sender === 'user' ? 'Bạn' : 'AI Assistant';
 
+    // If the message is from the bot, parse it as Markdown
+    const messageContent = (sender === 'bot') ? marked.parse(message) : message;
+
     let sourceHtml = '';
     if (metadata && metadata.source) {
         const source = metadata.source;
@@ -250,7 +253,7 @@ function addMessageToChat(sender, message, metadata = null) {
 
     const messageHtml = `
         <div id="${messageId}" class="message ${messageClass}">
-            <strong>${senderName}:</strong> ${message}
+            <strong>${senderName}:</strong> ${messageContent}
             ${sourceHtml}
         </div>
         <div style="clear: both;"></div>
@@ -264,7 +267,45 @@ function addMessageToChat(sender, message, metadata = null) {
         container.scrollTop = container.scrollHeight;
     }, 100);
 
+    // If the message is from the bot, enhance code blocks
+    if (sender === 'bot') {
+        enhanceCodeBlocks(messageId);
+    }
+
     return messageId;
+}
+
+function enhanceCodeBlocks(messageId) {
+    const messageElement = document.getElementById(messageId);
+    if (!messageElement) return;
+
+    // Find all <pre><code> blocks and highlight them
+    const codeBlocks = messageElement.querySelectorAll('pre code');
+    codeBlocks.forEach((block) => {
+        // Highlight the block
+        hljs.highlightElement(block);
+
+        // Create and add a copy button
+        const preElement = block.parentNode;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.innerText = 'Copy';
+        preElement.appendChild(copyBtn);
+
+        // Add click event to the copy button
+        copyBtn.addEventListener('click', () => {
+            const codeToCopy = block.innerText;
+            navigator.clipboard.writeText(codeToCopy).then(() => {
+                copyBtn.innerText = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.innerText = 'Copy';
+                }, 2000);
+            }, (err) => {
+                console.error('Failed to copy: ', err);
+                copyBtn.innerText = 'Error';
+            });
+        });
+    });
 }
 
 
