@@ -29,6 +29,11 @@ db.init_db()
 # Setup templates and static files
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount document directory to allow file downloads
+documents_dir = settings.documents_path
+os.makedirs(documents_dir, exist_ok=True)
+app.mount("/documents", StaticFiles(directory=documents_dir), name="documents")
+
 
 # Initialize RAG pipeline
 rag_pipeline = RAGPipeline()
@@ -355,6 +360,19 @@ async def logout(request: Request):
     """API endpoint để đăng xuất"""
     request.session.pop('user', None)
     return {"message": "Logout successful"}
+
+@app.get("/api/documents")
+async def list_documents(user: dict = Depends(get_current_user)):
+    """Lấy danh sách các tài liệu đã upload."""
+    try:
+        document_files = os.listdir(settings.documents_path)
+        # Lọc ra các file ẩn nếu có
+        visible_files = [f for f in document_files if not f.startswith('.')]
+        return {"documents": visible_files}
+    except FileNotFoundError:
+        return {"documents": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

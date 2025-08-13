@@ -23,7 +23,7 @@ class Settings:
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
     # Retrieval Settings
-    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.5"))
+    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
     max_retrieved_docs: int = int(os.getenv("MAX_RETRIEVED_DOCS", "5"))
 
     # Server Settings
