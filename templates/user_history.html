@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch sử của {{ target_user.username }} - RAG System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <a href="/admin/users" class="btn btn-secondary mb-3"><i class="fas fa-arrow-left"></i> Quay lại danh sách</a>
+
+    <h2>Lịch sử học tập của: <strong>{{ target_user.username }}</strong></h2>
+
+    {% if history %}
+        {% for item in history %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Ngày:</strong> {{ item.timestamp | default('N/A') }}
+                </div>
+                <div class="card-body">
+                    <p><strong>Điểm số:</strong> {{ item.total_score }} / {{ item.max_score }}</p>
+                    <h5>Chi tiết:</h5>
+                    <ul>
+                        {% for result in item.results %}
+                            <li>
+                                <strong>Câu hỏi:</strong> {{ result.question }}<br>
+                                <strong>Câu trả lời của bạn:</strong> {{ result.user_answer }}<br>
+                                <strong>Đáp án:</strong> {{ result.correct_answer }}<br>
+                                <strong class="{{ 'text-success' if result.score >= 0.9 else 'text-danger' }}">
+                                    {{ 'Đúng' if result.score >= 0.9 else 'Sai' }} (Điểm: {{ result.score }})
+                                </strong>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted">{{ target_user.username }} chưa có lịch sử học tập nào.</p>
+    {% endif %}
+</div>
+{% endblock %}

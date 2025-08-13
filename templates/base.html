@@ -91,12 +91,14 @@
                 <i class="fas fa-robot"></i> RAG System
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/">Chat</a>
-                <a class="nav-link" href="/qa">Q&A Learning</a>
-                <a class="nav-link" href="/history">Lịch sử</a>
-                <a class="nav-link" href="/admin">Quản lý</a>
                 {% if user %}
-                    <span class="navbar-text">Chào, {{ user }}</span>
+                    <a class="nav-link" href="/">Chat</a>
+                    <a class="nav-link" href="/qa">Q&A Learning</a>
+                    <a class="nav-link" href="/history">Lịch sử</a>
+                    {% if user.role == 'admin' %}
+                    <a class="nav-link" href="/admin">Quản lý</a>
+                    {% endif %}
+                    <span class="navbar-text">Chào, {{ user.username }}</span>
                     <a class="nav-link" href="#" id="logout-btn">Đăng xuất</a>
                 {% else %}
                     <a class="nav-link" href="/login">Đăng nhập</a>

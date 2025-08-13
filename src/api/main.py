@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
+from fastapi import Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -61,27 +62,61 @@ class RegisterRequest(BaseModel):
     username: str
     password: str
 
+# Dependency to get current user
+def get_current_user(request: Request):
+    user_info = request.session.get('user')
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user_info
+
+# Dependency for admin users
+def get_admin_user(current_user: dict = Depends(get_current_user)):
+    if current_user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return current_user
+
 # Routes
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
+async def home(request: Request, user: dict = Depends(get_current_user)):
     """Trang chủ"""
-    user = request.session.get('user')
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 @app.get("/qa", response_class=HTMLResponse)
-async def qa_page(request: Request):
+async def qa_page(request: Request, user: dict = Depends(get_current_user)):
     """Trang Q&A học tập"""
-    user = request.session.get('user')
     return templates.TemplateResponse("qa.html", {"request": request, "user": user})
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin(request: Request):
+async def admin(request: Request, user: dict = Depends(get_admin_user)):
     """Trang admin để quản lý documents"""
-    user = request.session.get('user')
     db_info = rag_pipeline.get_database_info()
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "db_info": db_info,
+        "user": user
+    })
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def user_management(request: Request, user: dict = Depends(get_admin_user)):
+    """Trang quản lý người dùng"""
+    all_users = db.get_all_users()
+    return templates.TemplateResponse("user_management.html", {"request": request, "users": all_users, "user": user})
+
+@app.get("/admin/users/{user_id}", response_class=HTMLResponse)
+async def view_user_history(user_id: int, request: Request, user: dict = Depends(get_admin_user)):
+    """Xem lịch sử của một người dùng cụ thể"""
+    conn = db.get_db_connection()
+    target_user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    history = db.get_user_qa_history(user_id)
+    return templates.TemplateResponse("user_history.html", {
+        "request": request,
+        "history": history,
+        "target_user": target_user,
         "user": user
     })
 
@@ -98,19 +133,22 @@ async def register_page(request: Request):
     return templates.TemplateResponse("register.html", {"request": request, "user": user})
 
 @app.get("/history", response_class=HTMLResponse)
-async def history_page(request: Request):
+async def history_page(request: Request, user: dict = Depends(get_current_user)):
     """Trang lịch sử học tập"""
-    user_session = request.session.get('user')
-    if not user_session:
-        return templates.TemplateResponse("login.html", {"request": request, "user": None})
+    history = db.get_user_qa_history(user['id'])
+    return templates.TemplateResponse("history.html", {"request": request, "user": user, "history": history})
 
-    user_db = db.get_user(user_session)
-    if not user_db:
-        # This case should ideally not happen if session is managed properly
-        return templates.TemplateResponse("login.html", {"request": request, "user": None})
+# Override the default 401 error handler to redirect to login
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import RedirectResponse
 
-    history = db.get_user_qa_history(user_db['id'])
-    return templates.TemplateResponse("history.html", {"request": request, "user": user_session, "history": history})
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 401:
+        return RedirectResponse(url="/login")
+    # You might want to handle other HTTPExceptions differently
+    # For now, let's re-raise for other codes to use FastAPI's default
+    raise exc
 
 @app.post("/api/query")
 async def query(request: QueryRequest):
@@ -245,17 +283,9 @@ async def generate_questions(num_questions: int = 3):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/qa/evaluate")
-async def evaluate_answers(req: Request, request: QAEvaluationRequest):
+async def evaluate_answers(request: QAEvaluationRequest, user: dict = Depends(get_current_user)):
     """Đánh giá câu trả lời của user dựa trên dữ liệu thực"""
     try:
-        user_session = req.session.get('user')
-        if not user_session:
-            raise HTTPException(status_code=401, detail="Vui lòng đăng nhập để thực hiện chức năng này")
-
-        user_db = db.get_user(user_session)
-        if not user_db:
-            raise HTTPException(status_code=401, detail="User không tồn tại")
-
         # Lấy câu hỏi từ session
         if request.session_id not in question_sessions:
             raise HTTPException(status_code=404, detail="Session không tồn tại hoặc đã hết hạn")
@@ -277,7 +307,7 @@ async def evaluate_answers(req: Request, request: QAEvaluationRequest):
         }
 
         # Lưu lịch sử
-        db.add_qa_history(user_db['id'], evaluation)
+        db.add_qa_history(user['id'], evaluation)
 
         # Xóa session sau khi đánh giá (optional)
         # del question_sessions[request.session_id]
@@ -291,15 +321,21 @@ async def evaluate_answers(req: Request, request: QAEvaluationRequest):
 @app.post("/api/login")
 async def login(request: Request, login_request: LoginRequest):
     """API endpoint để đăng nhập"""
-    user = db.get_user(login_request.username)
+    user_db = db.get_user(login_request.username)
     # In a real app, you'd use hashed passwords
-    if not user or not user["password"] == login_request.password:
+    if not user_db or not user_db["password"] == login_request.password:
         raise HTTPException(
             status_code=401,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    request.session['user'] = login_request.username
+
+    # Store user info in session
+    request.session['user'] = {
+        "id": user_db['id'],
+        "username": user_db['username'],
+        "role": user_db['role']
+    }
     return {"message": "Login successful"}
 
 @app.post("/api/register")

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header">
                 <h5><i class="fas fa-comments"></i> Chat với AI</h5>
@@ -41,84 +41,17 @@
             </div>
         </div>
     </div>
-
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h6><i class="fas fa-upload"></i> Thêm dữ liệu</h6>
-            </div>
-            <div class="card-body">
-                <!-- Upload File -->
-                <div class="mb-3">
-                    <h6>Upload File</h6>
-                    <div class="upload-area" onclick="document.getElementById('file-input').click()">
-                        <i class="fas fa-cloud-upload-alt fa-2x text-muted"></i>
-                        <p class="mt-2">Click để chọn file<br><small>PDF, DOCX, TXT</small></p>
-                    </div>
-                    <input type="file" id="file-input" style="display: none" accept=".pdf,.docx,.txt">
-                    <input type="text" id="file-title" class="form-control mt-2" placeholder="Tiêu đề (tùy chọn)">
-                    <button class="btn btn-success btn-sm mt-2" id="upload-btn">
-                        <i class="fas fa-upload"></i> Upload
-                    </button>
-                </div>
-
-                <hr>
-
-                <!-- Add Text -->
-                <div class="mb-3">
-                    <h6>Thêm Text</h6>
-                    <textarea id="text-input" class="form-control" rows="4" placeholder="Nhập text trực tiếp..."></textarea>
-                    <input type="text" id="text-title" class="form-control mt-2" placeholder="Tiêu đề">
-                    <button class="btn btn-info btn-sm mt-2" id="add-text-btn">
-                        <i class="fas fa-plus"></i> Thêm Text
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6><i class="fas fa-database"></i> Thông tin Database</h6>
-            </div>
-            <div class="card-body">
-                <div id="db-info">
-                    <p class="text-muted">Đang tải...</p>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" id="refresh-info-btn">
-                    <i class="fas fa-sync"></i> Làm mới
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    // Load database info
-    loadDatabaseInfo();
-
     // Send message
     $('#send-btn, #question-input').on('click keypress', function(e) {
         if (e.type === 'click' || e.which === 13) {
             sendMessage();
         }
-    });
-
-    // Upload file
-    $('#upload-btn').click(function() {
-        uploadFile();
-    });
-
-    // Add text
-    $('#add-text-btn').click(function() {
-        addText();
-    });
-
-    // Refresh database info
-    $('#refresh-info-btn').click(function() {
-        loadDatabaseInfo();
     });
 });
 
@@ -159,76 +92,6 @@ function sendMessage() {
     });
 }
 
-function uploadFile() {
-    const fileInput = document.getElementById('file-input');
-    const file = fileInput.files[0];
-    const title = $('#file-title').val();
-
-    if (!file) {
-        alert('Vui lòng chọn file');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-
-    $('#upload-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang upload...');
-
-    $.ajax({
-        url: '/api/upload-file',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(data) {
-            alert(`Upload thành công! Đã thêm ${data.chunks_added} chunks.`);
-            $('#file-title').val('');
-            fileInput.value = '';
-            loadDatabaseInfo();
-        },
-        error: function(xhr) {
-            alert('Lỗi upload: ' + xhr.responseJSON.detail);
-        },
-        complete: function() {
-            $('#upload-btn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload');
-        }
-    });
-}
-
-function addText() {
-    const text = $('#text-input').val().trim();
-    const title = $('#text-title').val().trim();
-
-    if (!text) {
-        alert('Vui lòng nhập text');
-        return;
-    }
-
-    $('#add-text-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang thêm...');
-
-    $.ajax({
-        url: '/api/add-text',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            text: text,
-            title: title || 'Text Input'
-        }),
-        success: function(data) {
-            alert(`Thêm text thành công! Đã tạo ${data.chunks_added} chunks.`);
-            $('#text-input').val('');
-            $('#text-title').val('');
-            loadDatabaseInfo();
-        },
-        error: function(xhr) {
-            alert('Lỗi thêm text: ' + xhr.responseJSON.detail);
-        },
-        complete: function() {
-            $('#add-text-btn').prop('disabled', false).html('<i class="fas fa-plus"></i> Thêm Text');
-        }
-    });
-}
 
 function addMessageToChat(sender, message, metadata = null) {
     const messageId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -310,30 +173,5 @@ function enhanceCodeBlocks(messageId) {
 
 
 
-function loadDatabaseInfo() {
-    $.ajax({
-        url: '/api/database-info',
-        method: 'GET',
-        success: function(data) {
-            let html = `
-                <p><strong>Tổng documents:</strong> ${data.total_documents}</p>
-                <p><strong>Vector DB:</strong> ${data.vector_db_type}</p>
-            `;
-
-            if (data.sources && Object.keys(data.sources).length > 0) {
-                html += '<p><strong>Nguồn dữ liệu:</strong></p><ul>';
-                for (const [source, count] of Object.entries(data.sources)) {
-                    html += `<li>${source}: ${count} chunks</li>`;
-                }
-                html += '</ul>';
-            }
-
-            $('#db-info').html(html);
-        },
-        error: function() {
-            $('#db-info').html('<p class="text-danger">Lỗi tải thông tin</p>');
-        }
-    });
-}
 </script>
 {% endblock %}

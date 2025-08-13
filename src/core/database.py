@@ -20,7 +20,8 @@ def init_db():
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user'
     )
     """)
 
@@ -42,11 +43,11 @@ def init_db():
     print("Database initialized successfully.")
 
 # User functions
-def add_user(username, password):
+def add_user(username, password, role='user'):
     """Thêm người dùng mới."""
     conn = get_db_connection()
     try:
-        conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+        conn.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
         conn.commit()
         return True
     except sqlite3.IntegrityError: # Username đã tồn tại
@@ -60,6 +61,13 @@ def get_user(username):
     user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
     conn.close()
     return user
+
+def get_all_users():
+    """Lấy danh sách tất cả người dùng."""
+    conn = get_db_connection()
+    users = conn.execute("SELECT id, username, role FROM users ORDER BY username").fetchall()
+    conn.close()
+    return users
 
 # History functions
 def add_qa_history(user_id, evaluation):

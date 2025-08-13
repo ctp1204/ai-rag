@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý người dùng - RAG System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Quản lý người dùng</h2>
+    <p>Chọn một người dùng để xem lịch sử học tập của họ.</p>
+
+    <div class="list-group">
+        {% for u in users %}
+            <a href="/admin/users/{{ u.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ u.username }}</h5>
+                    <small>Vai trò: {{ u.role }}</small>
+                </div>
+            </a>
+        {% else %}
+            <p class="text-muted">Không có người dùng nào trong hệ thống.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
