@@ -11,8 +11,8 @@ from config import settings
 class DocumentProcessor:
     def __init__(self):
         self.embedding_model = SentenceTransformer(settings.embedding_model)
-        self.chunk_size = 600  # Kích thước chunk text (số từ)
-        self.chunk_overlap = 80  # Overlap giữa các chunk
+        self.chunk_size = 256  # Kích thước chunk tối ưu hơn cho RAG
+        self.chunk_overlap = 50  # Overlap khoảng 20% chunk_size
 
     def extract_text_from_file(self, file_path: str) -> str:
         """Trích xuất text từ file (PDF, DOCX, TXT)"""
@@ -49,8 +49,34 @@ class DocumentProcessor:
         with open(file_path, 'r', encoding='utf-8') as file:
             return file.read()
 
-    def chunk_text(self, text: str) -> List[str]:
-        """Chia text thành các chunk nhỏ"""
+    def chunk_qna_text(self, text: str) -> List[str]:
+        """Chia text theo từng cặp Câu hỏi/Trả lời."""
+        import re
+        # Tách văn bản thành các khối dựa trên "Câu hỏi:"
+        # (re.split giữ lại delimiter trong kết quả)
+        parts = re.split(r'(Câu hỏi:|Câu-hỏi:)', text)
+        chunks = []
+
+        # Bỏ qua phần tử rỗng đầu tiên nếu có
+        if not parts[0].strip():
+            parts = parts[1:]
+
+        # Ghép lại delimiter với nội dung của nó
+        for i in range(0, len(parts), 2):
+            if i + 1 < len(parts):
+                chunk = parts[i] + parts[i+1]
+                # Loại bỏ các dòng trống và khoảng trắng thừa
+                cleaned_chunk = "\n".join(line.strip() for line in chunk.splitlines() if line.strip())
+                chunks.append(cleaned_chunk)
+
+        # Nếu không tìm thấy mẫu Q&A, quay về chunking thông thường
+        if not chunks:
+            return self.chunk_text_by_size(text)
+
+        return chunks
+
+    def chunk_text_by_size(self, text: str) -> List[str]:
+        """Chia text thành các chunk nhỏ theo kích thước."""
         words = text.split()
         chunks = []
 
@@ -64,6 +90,17 @@ class DocumentProcessor:
 
         return chunks
 
+    def chunk_text(self, text: str, file_path: str = "") -> List[str]:
+       """
+       Chia text thành các chunk.
+       Ưu tiên chia theo định dạng Q&A cho file .txt, nếu không thì chia theo kích thước.
+       """
+       # Kiểm tra nếu là file .txt và có định dạng Q&A
+       if file_path.endswith('.txt') and ("Câu hỏi:" in text or "Câu-hỏi:" in text):
+           return self.chunk_qna_text(text)
+       else:
+           return self.chunk_text_by_size(text)
+
     def create_embeddings(self, texts: List[str]) -> np.ndarray:
         """Tạo embeddings cho list text"""
         embeddings = self.embedding_model.encode(texts)
@@ -74,8 +111,8 @@ class DocumentProcessor:
         # Extract text
         text = self.extract_text_from_file(file_path)
 
-        # Chunk text
-        chunks = self.chunk_text(text)
+        # Chunk text, truyền file_path để có thể xử lý đặc biệt
+        chunks = self.chunk_text(text, file_path)
 
         # Create embeddings
         embeddings = self.create_embeddings(chunks)
@@ -98,7 +135,7 @@ class DocumentProcessor:
     def process_text_directly(self, text: str, source: str = "direct_input", metadata: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Xử lý text trực tiếp (không từ file)"""
         # Chunk text
-        chunks = self.chunk_text(text)
+        chunks = self.chunk_text(text) # Không có file_path, sẽ dùng chunking theo size
 
         # Create embeddings
         embeddings = self.create_embeddings(chunks)
