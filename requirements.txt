@@ -16,7 +16,7 @@ torch
 transformers
 
 # Vector Database
-pinecone-client
+pinecone
 faiss-cpu
 chromadb
 
