@@ -9,6 +9,7 @@ import shutil
 from typing import Optional, List
 from pydantic import BaseModel
 import sys
+from pathlib import Path
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -26,9 +27,16 @@ app.add_middleware(SessionMiddleware, secret_key=secret)
 # Initialize database
 db.init_db()
 
+# --- Path setup ---
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+STATIC_DIR = BASE_DIR / 'static'
+TEMPLATES_DIR = BASE_DIR / 'templates'
+
 # Setup templates and static files
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 # Mount document directory to allow file downloads
 documents_dir = settings.documents_path
 os.makedirs(documents_dir, exist_ok=True)

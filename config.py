@@ -20,7 +20,7 @@ class Settings:
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
     llm_provider: str = os.getenv("LLM_PROVIDER", "google")
     llm_model: str = os.getenv("LLM_MODEL", "gpt-3.5-turbo") # Sẽ được ghi đè bởi model cụ thể
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-05-20")
 
     # Retrieval Settings
     similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
