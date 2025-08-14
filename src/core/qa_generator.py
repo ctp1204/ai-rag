@@ -212,31 +212,52 @@ class QAGenerator:
 
     def _calculate_answer_score(self, user_answer: str, correct_answer: str) -> float:
         """
-        Tính điểm cho câu trả lời bằng cách sử dụng fuzzy string matching.
+        Tính điểm cho câu trả lời bằng cách sử dụng LLM để so sánh ngữ nghĩa.
         """
         if not user_answer.strip():
             return 0.0
 
-        # Chuẩn hóa cả hai chuỗi để so sánh tốt hơn
-        user_answer_norm = user_answer.lower().strip()
-        correct_answer_norm = correct_answer.lower().strip()
+        # Nếu có sự trùng khớp hoàn hảo (bỏ qua chữ hoa/thường và khoảng trắng)
+        if user_answer.lower().strip() == correct_answer.lower().strip():
+            return 1.0
 
-        # Sử dụng token_sort_ratio để so sánh không phân biệt thứ tự từ
-        # và xử lý tốt các từ đồng nghĩa gần đúng.
-        similarity_ratio = fuzz.token_sort_ratio(user_answer_norm, correct_answer_norm)
+        prompt = f"""
+        Bạn là một giám khảo chuyên nghiệp, nhiệm vụ của bạn là đánh giá mức độ tương đồng về mặt ngữ nghĩa giữa câu trả lời của thí sinh và đáp án.
 
-        # Chuyển đổi tỷ lệ (0-100) thành điểm (0.0-1.0)
-        # Các ngưỡng này có thể được điều chỉnh để phù hợp hơn
-        if similarity_ratio >= 95:
-            return 1.0  # Gần như hoàn hảo
-        elif similarity_ratio >= 85:
-            return 0.8  # Rất giống
-        elif similarity_ratio >= 70:
-            return 0.6  # Khá giống
-        elif similarity_ratio >= 50:
-            return 0.4  # Có một phần liên quan
-        else:
-            return 0.0
+        **Đáp án đúng:**
+        {correct_answer}
+
+        **Câu trả lời của thí sinh:**
+        {user_answer}
+
+        **Yêu cầu:**
+        Hãy cho điểm câu trả lời của thí sinh dựa trên thang điểm từ 0.0 đến 1.0, trong đó:
+        - 1.0: Hoàn toàn chính xác, cùng ý nghĩa với đáp án.
+        - 0.8: Rất giống, chỉ thiếu một vài chi tiết nhỏ không quan trọng.
+        - 0.6: Khá giống, nắm được ý chính nhưng thiếu một số chi tiết quan trọng.
+        - 0.4: Có liên quan nhưng trả lời sai hoặc thiếu nhiều ý.
+        - 0.0: Hoàn toàn sai.
+
+        Chỉ trả về một đối tượng JSON duy nhất có dạng: {{"score": <điểm số của bạn>}}
+        Ví dụ: {{"score": 0.8}}
+        """
+
+        try:
+            if self.llm_manager.is_available():
+                response = self.llm_manager.generate_response(prompt, context="")
+                import json
+                result = json.loads(response)
+                score = float(result.get("score", 0.0))
+                # Đảm bảo điểm số nằm trong khoảng 0.0 và 1.0
+                return max(0.0, min(1.0, score))
+            else:
+                logger.warning("LLM not available for scoring, falling back to fuzzy matching.")
+                # Fallback to fuzzy matching if LLM is down
+                return fuzz.token_sort_ratio(user_answer.lower(), correct_answer.lower()) / 100.0
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            logger.error(f"Error parsing LLM score response: {e}. Response: {response}. Falling back to fuzzy matching.")
+            # Fallback to fuzzy matching on error
+            return fuzz.token_sort_ratio(user_answer.lower(), correct_answer.lower()) / 100.0
 
     def _generate_feedback(self, user_answer: str, correct_answer: str, score: float) -> str:
         """Tạo feedback cho câu trả lời"""
