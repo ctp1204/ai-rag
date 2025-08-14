@@ -137,7 +137,7 @@ def get_qa_session(session_id: str) -> Optional[list]:
         return json.loads(row['questions'])
     return None
 
-def-qa_session(session_id: str):
+def delete_qa_session(session_id: str):
     """Xóa một session câu hỏi khỏi database."""
     conn = get_db_connection()
     conn.execute("DELETE FROM qa_sessions WHERE id = ?", (session_id,))
