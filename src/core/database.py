@@ -94,26 +94,36 @@ def add_qa_history(user_id, evaluation):
     conn.commit()
     conn.close()
 
-def get_user_qa_history(user_id):
-    """Lấy toàn bộ lịch sử Q&A của người dùng."""
+def get_user_qa_history(user_id: int, page: int = 1, per_page: int = 10):
+    """Lấy lịch sử Q&A của người dùng với phân trang."""
     conn = get_db_connection()
+    offset = (page - 1) * per_page
     history_rows = conn.execute("""
-    SELECT * FROM qa_history
-    WHERE user_id = ?
-    ORDER BY timestamp DESC
-    """, (user_id,)).fetchall()
+        SELECT * FROM qa_history
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ? OFFSET ?
+    """, (user_id, per_page, offset)).fetchall()
     conn.close()
 
     # Chuyển đổi dữ liệu trả về
     history = []
     for row in history_rows:
         history.append({
+            'id': row['id'],
             'total_score': row['score'],
             'max_score': row['total'],
             'results': json.loads(row['results']),
             'timestamp': row['timestamp']
         })
     return history
+
+def count_user_qa_history(user_id: int) -> int:
+    """Đếm tổng số bản ghi lịch sử của người dùng."""
+    conn = get_db_connection()
+    count = conn.execute("SELECT COUNT(id) FROM qa_history WHERE user_id = ?", (user_id,)).fetchone()[0]
+    conn.close()
+    return count
 
 # --- QA Session Functions ---
 

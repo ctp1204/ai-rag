@@ -150,10 +150,23 @@ async def register_page(request: Request):
     return templates.TemplateResponse("register.html", {"request": request, "user": user})
 
 @app.get("/history", response_class=HTMLResponse)
-async def history_page(request: Request, user: dict = Depends(get_current_user)):
-    """Trang lịch sử học tập"""
-    history = db.get_user_qa_history(user['id'])
-    return templates.TemplateResponse("history.html", {"request": request, "user": user, "history": history})
+async def history_page(request: Request, user: dict = Depends(get_current_user), page: int = 1):
+    """Trang lịch sử học tập với phân trang"""
+    import math
+    per_page = 10
+
+    total_records = db.count_user_qa_history(user['id'])
+    history = db.get_user_qa_history(user['id'], page=page, per_page=per_page)
+
+    total_pages = math.ceil(total_records / per_page)
+
+    return templates.TemplateResponse("history.html", {
+        "request": request,
+        "user": user,
+        "history": history,
+        "current_page": page,
+        "total_pages": total_pages
+    })
 
 # Override the default 401 error handler to redirect to login
 from fastapi.exceptions import RequestValidationError
