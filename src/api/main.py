@@ -28,10 +28,14 @@ app.add_middleware(SessionMiddleware, secret_key=secret)
 db.init_db()
 
 # --- Path setup ---
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Get the project's base directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = BASE_DIR / 'static'
 TEMPLATES_DIR = BASE_DIR / 'templates'
+
+# Check if the directories exist and create them if they don't (for local dev)
+os.makedirs(STATIC_DIR, exist_ok=True)
+os.makedirs(TEMPLATES_DIR, exist_ok=True)
 
 # Setup templates and static files
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
