@@ -217,29 +217,34 @@ class QAGenerator:
         if not user_answer.strip():
             return 0.0
 
-        # Nếu có sự trùng khớp hoàn hảo (bỏ qua chữ hoa/thường và khoảng trắng)
-        if user_answer.lower().strip() == correct_answer.lower().strip():
+        user_answer_norm = user_answer.lower().strip()
+        correct_answer_norm = correct_answer.lower().strip()
+
+        # Ưu tiên 1: Nếu câu trả lời của người dùng chứa toàn bộ đáp án đúng -> điểm tuyệt đối
+        if correct_answer_norm in user_answer_norm:
+            return 1.0
+
+        # Ưu tiên 2: Nếu có sự trùng khớp hoàn hảo -> điểm tuyệt đối
+        if user_answer_norm == correct_answer_norm:
             return 1.0
 
         prompt = f"""
-        Bạn là một giám khảo chuyên nghiệp, nhiệm vụ của bạn là đánh giá mức độ tương đồng về mặt ngữ nghĩa giữa câu trả lời của thí sinh và đáp án.
+        Bạn là một giám khảo chuyên nghiệp, nhiệm vụ của bạn là đánh giá câu trả lời của thí sinh.
 
-        **Đáp án đúng:**
+        **Đáp án đúng (Answer Key):**
         {correct_answer}
 
-        **Câu trả lời của thí sinh:**
+        **Câu trả lời của thí sinh (Candidate's Answer):**
         {user_answer}
 
         **Yêu cầu:**
-        Hãy cho điểm câu trả lời của thí sinh dựa trên thang điểm từ 0.0 đến 1.0, trong đó:
-        - 1.0: Hoàn toàn chính xác, cùng ý nghĩa với đáp án.
-        - 0.8: Rất giống, chỉ thiếu một vài chi tiết nhỏ không quan trọng.
-        - 0.6: Khá giống, nắm được ý chính nhưng thiếu một số chi tiết quan trọng.
-        - 0.4: Có liên quan nhưng trả lời sai hoặc thiếu nhiều ý.
-        - 0.0: Hoàn toàn sai.
+        Hãy đánh giá xem "Câu trả lời của thí sinh" có chứa đựng đầy đủ và chính xác ý nghĩa của "Đáp án đúng" hay không.
+        - Nếu câu trả lời của thí sinh bao hàm toàn bộ ý của đáp án đúng (có thể diễn đạt khác hoặc chứa thêm thông tin bổ sung hữu ích), hãy cho điểm 1.0.
+        - Nếu câu trả lời của thí sinh nắm được ý chính nhưng thiếu một vài chi tiết quan trọng, hãy cho điểm thấp hơn (ví dụ: 0.6-0.8).
+        - Nếu câu trả lời sai hoặc thiếu nhiều ý, hãy cho điểm thấp (ví dụ: 0.0-0.4).
 
-        Chỉ trả về một đối tượng JSON duy nhất có dạng: {{"score": <điểm số của bạn>}}
-        Ví dụ: {{"score": 0.8}}
+        **Chỉ trả về một đối tượng JSON duy nhất có dạng:** {{"score": <điểm số của bạn>}}
+        Ví dụ: {{"score": 1.0}}
         """
 
         try:
