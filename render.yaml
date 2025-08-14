@@ -9,6 +9,14 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.9"
+      - key: PINECONE_ENVIRONMENT
+        value: "gcp-starter" # Or your actual environment
+      - key: PINECONE_INDEX_NAME
+        value: "your-index-name" # Change to your actual index name
+      - key: LLM_PROVIDER
+        value: "google" # Or your preferred default
+      - key: VECTOR_DB_TYPE
+        value: "pinecone" # Or your preferred default
       - key: OPENAI_API_KEY
         fromSecret: true
       - key: ANTHROPIC_API_KEY
@@ -19,13 +27,5 @@ services:
         fromSecret: true
       - key: PINECONE_API_KEY
         fromSecret: true
-      - key: PINECONE_ENVIRONMENT
-        value: "gcp-starter" # Or your actual environment
-      - key: PINECONE_INDEX_NAME
-        value: "your-index-name" # Change to your actual index name
       - key: SECRET_KEY
         fromSecret: true
-      - key: LLM_PROVIDER
-        value: "google" # Or your preferred default
-      - key: VECTOR_DB_TYPE
-        value: "pinecone" # Or your preferred default
