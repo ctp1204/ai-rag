@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: rag-app
+    name: dxai-solutions
     env: python
     plan: free
     buildCommand: "./build.sh"
-    startCommand: "gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api.main:app"
+    startCommand: "gunicorn -w 2 -k uvicorn.workers.UvicornWorker src.api.main:app"
     healthCheckPath: "/"
     envVars:
       - key: PYTHON_VERSION

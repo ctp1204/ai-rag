@@ -17,7 +17,7 @@ class Settings:
     documents_path: str = os.getenv("DOCUMENTS_PATH", "./data/documents")
 
     # Model Settings
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "paraphrase-MiniLM-L3-v2")
     llm_provider: str = os.getenv("LLM_PROVIDER", "google")
     llm_model: str = os.getenv("LLM_MODEL", "gpt-3.5-turbo") # Sẽ được ghi đè bởi model cụ thể
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-05-20")
