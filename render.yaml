@@ -8,7 +8,7 @@ services:
     healthCheckPath: "/"
     envVars:
       - key: PYTHON_VERSION
-        value: "3.9"
+        value: "3.9.16"
       - key: PINECONE_ENVIRONMENT
         value: "gcp-starter" # Or your actual environment
       - key: PINECONE_INDEX_NAME
