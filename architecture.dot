@@ -1,0 +1,75 @@
+digraph ProjectRAG {
+    // General Style
+    graph [rankdir=TB, splines=ortho, nodesep=0.6, pad="1"];
+    node [shape=box, style="rounded,filled", fillcolor="#EFEFEF", fontname="Arial"];
+    edge [fontname="Arial", fontsize=10];
+
+    // --- Data Ingestion ---
+    subgraph cluster_ingestion {
+        label = "Phase 0: Data Ingestion";
+        style = "dashed";
+        ingest_docs [label="Tài liệu gốc (.txt, .pdf)"];
+        document_processor [label="DocumentProcessor\n(Chunking)", shape=invhouse, fillcolor="#C9DAF8"];
+        embedding_model [label="SentenceTransformer\n(Embedding)", shape=invhouse, fillcolor="#C9DAF8"];
+        vector_db [label="Vector Database\n(Pinecone)", shape=cylinder, fillcolor="#D5A6BD"];
+
+        ingest_docs -> document_processor -> embedding_model -> vector_db;
+    }
+
+    // --- Answering Flow ---
+    subgraph cluster_answering {
+        label = "Luồng 1: Trả lời câu hỏi (Answering Flow)";
+        style="filled";
+        fillcolor="#F3F3F3";
+
+        user_query [label="Người dùng\nđặt câu hỏi"];
+        query_embedding [label="Embedding câu hỏi"];
+        vector_search [label="Tìm kiếm trong Vector DB", shape=hexagon, fillcolor="#F9CB9C"];
+        check_results [label="Kiểm tra kết quả?", shape=diamond, fillcolor="#FCE5CD"];
+
+        user_query -> query_embedding -> vector_search -> check_results;
+
+        // Paths from check_results
+        extract_answer [label="Trích xuất câu trả lời\ntrực tiếp từ tài liệu", fillcolor="#B6D7A8"];
+        fallback_llm [label="Dùng LLM Fallback\n(kiến thức chung)"];
+        no_data [label="Thông báo\nkhông có dữ liệu"];
+
+        check_results -> extract_answer [label="  Tìm thấy"];
+        check_results -> fallback_llm [label="Không tìm thấy\n(Fallback ON)"];
+        check_results -> no_data [label="Không tìm thấy\n(Fallback OFF)"];
+
+        final_answer [label="Hiển thị câu trả lời", shape=ellipse, fillcolor="#9FC5E8"];
+        extract_answer -> final_answer;
+        fallback_llm -> final_answer;
+        no_data -> final_answer;
+    }
+
+    // --- QA Generation & Evaluation Flow ---
+    subgraph cluster_qa {
+        label = "Luồng 2: Tạo & Đánh giá bài kiểm tra (QA Flow)";
+        style="filled";
+        fillcolor="#F3F3F3";
+
+        // Generation
+        get_docs [label="Lấy tài liệu\ntừ Vector DB"];
+        qa_generation_llm [label="Dùng LLM\ntạo cặp Câu hỏi & Đáp án"];
+        get_docs -> qa_generation_llm;
+
+        // Evaluation
+        user_response [label="Người dùng\ntrả lời"];
+        scoring_logic [label="Chấm điểm thông minh", shape=Mdiamond, fillcolor="#F9CB9C"];
+        check_containment [label="Câu trả lời có chứa\ntoàn bộ đáp án không?", shape=diamond, fillcolor="#FCE5CD"];
+        semantic_llm_score [label="Dùng LLM\nso sánh ngữ nghĩa"];
+
+        user_response -> scoring_logic -> check_containment;
+        check_containment -> semantic_llm_score [label="Không"];
+
+        final_score [label="Hiển thị Điểm & Nhận xét", shape=ellipse, fillcolor="#9FC5E8"];
+        check_containment -> final_score [label="Có (Điểm = 1.0)"];
+        semantic_llm_score -> final_score;
+    }
+
+    // Connections between subgraphs
+    vector_db -> vector_search;
+    vector_db -> get_docs;
+}
