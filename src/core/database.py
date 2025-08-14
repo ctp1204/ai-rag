@@ -38,6 +38,15 @@ def init_db():
     )
     """)
 
+    # Bảng lưu session câu hỏi
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS qa_sessions (
+        id TEXT PRIMARY KEY,
+        questions TEXT NOT NULL,
+        created_at DATETIME NOT NULL
+    )
+    """)
+
     conn.commit()
     conn.close()
     print("Database initialized successfully.")
@@ -104,6 +113,37 @@ def get_user_qa_history(user_id):
             'timestamp': row['timestamp']
         })
     return history
+
+# --- QA Session Functions ---
+
+def save_qa_session(session_id: str, questions: list):
+    """Lưu một session câu hỏi vào database."""
+    conn = get_db_connection()
+    questions_json = json.dumps(questions)
+    timestamp = datetime.now()
+    conn.execute(
+        "INSERT INTO qa_sessions (id, questions, created_at) VALUES (?, ?, ?)",
+        (session_id, questions_json, timestamp)
+    )
+    conn.commit()
+    conn.close()
+
+def get_qa_session(session_id: str) -> Optional[list]:
+    """Lấy một session câu hỏi từ database."""
+    conn = get_db_connection()
+    row = conn.execute("SELECT questions FROM qa_sessions WHERE id = ?", (session_id,)).fetchone()
+    conn.close()
+    if row:
+        return json.loads(row['questions'])
+    return None
+
+def-qa_session(session_id: str):
+    """Xóa một session câu hỏi khỏi database."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM qa_sessions WHERE id = ?", (session_id,))
+    conn.commit()
+    conn.close()
+
 
 if __name__ == '__main__':
     init_db()

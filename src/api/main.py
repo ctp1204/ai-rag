@@ -53,8 +53,8 @@ rag_pipeline = RAGPipeline()
 # Initialize QA Generator
 qa_generator = QAGenerator(rag_pipeline.retrieval_engine, rag_pipeline.llm_manager)
 
-# Store for temporary question sessions
-question_sessions = {}
+# Xóa bỏ biến lưu session trong bộ nhớ
+# question_sessions = {}
 
 # Pydantic models
 class QueryRequest(BaseModel):
@@ -277,8 +277,8 @@ async def generate_questions(num_questions: int = 3):
         import uuid
         session_id = str(uuid.uuid4())
 
-        # Lưu câu hỏi đầy đủ vào session
-        question_sessions[session_id] = questions
+        # Lưu câu hỏi đầy đủ vào database thay vì bộ nhớ
+        db.save_qa_session(session_id, questions)
 
         # Chỉ trả về câu hỏi, không trả về đáp án
         response_questions = []
@@ -303,11 +303,10 @@ async def generate_questions(num_questions: int = 3):
 async def evaluate_answers(request: QAEvaluationRequest, user: dict = Depends(get_current_user)):
     """Đánh giá câu trả lời của user dựa trên dữ liệu thực"""
     try:
-        # Lấy câu hỏi từ session
-        if request.session_id not in question_sessions:
+        # Lấy câu hỏi từ database
+        questions = db.get_qa_session(request.session_id)
+        if not questions:
             raise HTTPException(status_code=404, detail="Session không tồn tại hoặc đã hết hạn")
-
-        questions = question_sessions[request.session_id]
 
         if len(questions) != len(request.user_answers):
             raise HTTPException(status_code=400, detail="Số câu trả lời không khớp với số câu hỏi")
@@ -326,8 +325,8 @@ async def evaluate_answers(request: QAEvaluationRequest, user: dict = Depends(ge
         # Lưu lịch sử
         db.add_qa_history(user['id'], evaluation)
 
-        # Xóa session sau khi đánh giá (optional)
-        # del question_sessions[request.session_id]
+        # Xóa session sau khi đánh giá
+        db.delete_qa_session(request.session_id)
 
         return evaluation
     except HTTPException:
