@@ -3,7 +3,6 @@ services:
     name: rag-app
     env: python
     plan: free # or standard, pro, etc.
-    pythonVersion: "3.9"
     buildCommand: "./build.sh"
     startCommand: "gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api.main:app"
     healthCheckPath: "/"
