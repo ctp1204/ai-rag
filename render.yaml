@@ -4,19 +4,12 @@ services:
     env: python
     plan: free
     buildCommand: "./build.sh"
-    startCommand: "gunicorn -w 2 -k uvicorn.workers.UvicornWorker src.api.main:app"
+    startCommand: "gunicorn -w 1 -k uvicorn.workers.UvicornWorker --timeout 120 --bind 0.0.0.0:$PORT src.api.main:app"
     healthCheckPath: "/"
     envVars:
       - key: PYTHON_VERSION
         value: "3.9.16"
-      - key: PINECONE_ENVIRONMENT
-        value: "gcp-starter" # Or your actual environment
-      - key: PINECONE_INDEX_NAME
-        value: "your-index-name" # Change to your actual index name
-      - key: LLM_PROVIDER
-        value: "google" # Or your preferred default
-      - key: VECTOR_DB_TYPE
-        value: "pinecone" # Or your preferred default
-      # NOTE: All secret keys (API keys, etc.) should be added
-      # directly in the Render.com dashboard under the 'Environment' tab.
-      # Do not add them here.
+      - key: WEB_CONCURRENCY # Set to 1 for free tier
+        value: 1
+      # Note: All secret keys and other environment variables
+      # will be loaded from a .env file configured as a Secret File in the Render Dashboard.
