@@ -1,176 +1,114 @@
-# RAG System - Retrieval-Augmented Generation
+# Hệ thống Hỏi-Đáp và Tạo Bài kiểm tra thông minh (Advanced RAG System)
 
-Hệ thống RAG (Retrieval-Augmented Generation) cho phép bạn tạo một AI assistant thông minh có thể trả lời câu hỏi dựa trên dữ liệu tùy chỉnh của bạn, với khả năng fallback sang LLM API khi không tìm thấy dữ liệu liên quan.
+Đây là một hệ thống RAG (Retrieval-Augmented Generation) nâng cao, cho phép bạn xây dựng một AI assistant thông minh có thể trả lời câu hỏi dựa trên dữ liệu tùy chỉnh, đồng thời tích hợp một hệ thống tạo và đánh giá bài kiểm tra tự động.
 
 ## 🌟 Tính năng chính
 
-- **📚 Xử lý đa định dạng**: Hỗ trợ PDF, DOCX, TXT
-- **🔍 Tìm kiếm semantic**: Sử dụng vector embeddings để tìm kiếm thông tin liên quan
-- **🤖 Fallback thông minh**: Tự động chuyển sang OpenAI/Anthropic API khi không có dữ liệu local
-- **💾 Vector Database**: Hỗ trợ ChromaDB và FAISS
-- **🌐 Web Interface**: Giao diện web đơn giản để upload dữ liệu và chat
-- **⚙️ Cấu hình linh hoạt**: Dễ dàng tùy chỉnh qua file .env
+-   **✅ Trả lời chính xác từ tài liệu:** Ưu tiên trích xuất câu trả lời trực tiếp từ tài liệu gốc để đảm bảo độ chính xác tuyệt đối.
+-   **🧠 Hệ thống kiểm tra tự động:** Tự động tạo các cặp câu hỏi và đáp án từ kho tài liệu của bạn để tạo bài kiểm tra kiến thức.
+-   **💯 Chấm điểm ngữ nghĩa thông minh:** Sử dụng LLM để đánh giá câu trả lời của người dùng dựa trên ý nghĩa, thay vì so khớp văn bản cứng nhắc.
+-   **🤖 Fallback linh hoạt:** Tự động chuyển sang các nhà cung cấp LLM (Google, OpenAI, Anthropic) khi không tìm thấy dữ liệu trong tài liệu.
+-   **🔑 API an toàn:** Hỗ trợ xác thực bằng API key cho các kết nối server-to-server.
+-   **💾 Hỗ trợ đa dạng Vector DB:** Tương thích với Pinecone, ChromaDB, và FAISS.
+-   **⚙️ Cấu hình linh hoạt:** Dễ dàng tùy chỉnh mọi thứ qua file `.env`.
+-   **🚀 Sẵn sàng Deploy:** Cấu hình sẵn cho việc triển khai lên Render.com.
 
-## 🚀 Cài đặt nhanh
+## 🚀 Hướng dẫn cài đặt và sử dụng
 
 ### 1. Clone và cài đặt dependencies
 
 ```bash
 git clone <repository-url>
-cd ai-retrieval-augmented-generation
+cd <repository-folder>
 pip install -r requirements.txt
 ```
 
-### 2. Cấu hình API keys
+### 2. Cấu hình môi trường
 
+Sao chép file cấu hình mẫu và điền các thông tin cần thiết.
 ```bash
 cp .env.example .env
 ```
 
-Chỉnh sửa file `.env` và thêm API key của bạn:
-
+Mở file `.env` và điền các API key cũng như cấu hình của bạn:
 ```env
-# Chọn một trong các API sau
-OPENAI_API_KEY=your_openai_api_key_here
-# hoặc
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+# --- Bắt buộc ---
+# Chọn ít nhất một nhà cung cấp LLM
+GOOGLE_API_KEY=your_google_api_key
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
 
-# Cấu hình khác (tùy chọn)
-VECTOR_DB_TYPE=chromadb
-LLM_PROVIDER=openai
+# --- Bắt buộc cho Vector DB là Pinecone ---
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_ENVIRONMENT=your_pinecone_environment
+
+# --- Bắt buộc cho giao diện web ---
+SECRET_KEY=run_this_in_terminal_to_generate: openssl rand -hex 32
+
+# --- Tùy chọn ---
+# Nhà cung cấp LLM và Vector DB mặc định
+LLM_PROVIDER=google
+VECTOR_DB_TYPE=pinecone
+PINECONE_INDEX_NAME=my-rag-index
+
+# API Key cho kết nối server-to-server
+SERVER_API_KEY=your_strong_secret_key_for_server_auth
 ```
 
-### 3. Chạy ứng dụng
+### 3. Chạy ứng dụng локально
 
 ```bash
 python main.py
 ```
+Truy cập `http://localhost:8000` để sử dụng giao diện web.
 
-Truy cập: http://localhost:8000
+## 🚀 Hướng dẫn Deploy lên Render.com
 
-## 📖 Hướng dẫn sử dụng
+Dự án này đã được cấu hình sẵn để deploy dễ dàng thông qua "Infrastructure as Code".
 
-### Thêm dữ liệu
-
-1. **Upload file**: Kéo thả hoặc chọn file PDF/DOCX/TXT
-2. **Thêm text**: Nhập text trực tiếp vào hệ thống
-
-### Chat với AI
-
-1. Nhập câu hỏi vào ô chat
-2. Hệ thống sẽ:
-   - Tìm kiếm thông tin liên quan trong dữ liệu của bạn
-   - Nếu tìm thấy: Trả lời dựa trên dữ liệu local
-   - Nếu không tìm thấy: Sử dụng LLM API (nếu bật fallback)
-
-### Quản lý dữ liệu
-
-- Truy cập `/admin` để xem thống kê và quản lý documents
-- Tìm kiếm, xóa documents cụ thể
-- Xóa toàn bộ database nếu cần
-
-## 🔧 Cấu hình nâng cao
-
-### Vector Database
-
-```env
-# ChromaDB (khuyến nghị)
-VECTOR_DB_TYPE=chromadb
-
-# FAISS (nhanh hơn cho dataset lớn)
-VECTOR_DB_TYPE=faiss
-```
-
-### LLM Provider
-
-```env
-# OpenAI
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-3.5-turbo
-
-# Anthropic Claude
-LLM_PROVIDER=anthropic
-LLM_MODEL=claude-3-sonnet-20240229
-```
-
-### Retrieval Settings
-
-```env
-SIMILARITY_THRESHOLD=0.7  # Ngưỡng độ tương tự (0-1)
-MAX_RETRIEVED_DOCS=5      # Số documents tối đa truy xuất
-```
+1.  **Đẩy code lên GitHub/GitLab:** Đảm bảo bạn đã commit các file `render.yaml`, `build.sh`, và `requirements.txt`.
+2.  **Tạo Blueprint trên Render:**
+    *   Trên Dashboard Render, chọn **New +** > **Blueprint**.
+    *   Kết nối với repository của bạn. Render sẽ tự động phát hiện và sử dụng file `render.yaml`.
+3.  **Cung cấp Secrets:**
+    *   Sau khi tạo resource, Render sẽ yêu cầu bạn nhập các giá trị cho các biến môi trường bí mật (ví dụ: `GOOGLE_API_KEY`, `PINECONE_API_KEY`...).
+4.  **Deploy:**
+    *   Lưu lại các secrets, Render sẽ tự động build và deploy ứng dụng của bạn.
 
 ## 🏗️ Kiến trúc hệ thống
 
-```
-src/
-├── core/
-│   ├── document_processor.py  # Xử lý và embedding documents
-│   ├── vector_database.py     # Vector database abstraction
-│   ├── retrieval_engine.py    # Engine tìm kiếm semantic
-│   ├── llm_client.py          # LLM API clients
-│   └── rag_pipeline.py        # Main RAG pipeline
-├── api/
-│   └── main.py               # FastAPI application
-└── web/
-    └── ...                   # Web interface components
-```
+Dự án được cấu trúc rõ ràng với các thành phần chính:
 
-## 🧪 Testing
+-   `src/api/main.py`: Lõi ứng dụng FastAPI, xử lý các request.
+-   `src/core/rag_pipeline.py`: Điều phối luồng hỏi-đáp, quyết định khi nào truy xuất từ tài liệu, khi nào dùng fallback.
+-   `src/core/qa_generator.py`: Chịu trách nhiệm tạo câu hỏi và chấm điểm thông minh.
+-   `src/core/retrieval_engine.py`: Giao tiếp với Vector DB để tìm kiếm và truy xuất dữ liệu.
+-   `src/core/llm_client.py`: Quản lý các kết nối đến những nhà cung cấp LLM khác nhau.
+-   `templates/`: Chứa các file HTML cho giao diện người dùng.
 
-```bash
-# Chạy tests cơ bản
-python -m pytest tests/ -v
-
-# Test từng component
-python -c "from src.core.rag_pipeline import RAGPipeline; rag = RAGPipeline(); print(rag.health_check())"
-```
+Để xem sơ đồ kiến trúc trực quan, hãy tham khảo file `project_architecture.md`.
 
 ## 📝 API Endpoints
 
-- `GET /` - Trang chủ chat
-- `GET /admin` - Trang quản lý
-- `POST /api/query` - Chat với AI
-- `POST /api/upload-file` - Upload file
-- `POST /api/add-text` - Thêm text
-- `GET /api/database-info` - Thông tin database
-- `GET /api/search` - Tìm kiếm documents
-- `DELETE /api/document/{id}` - Xóa document
-- `DELETE /api/database` - Xóa toàn bộ database
+Hệ thống cung cấp 2 nhóm endpoint:
 
-## 🔍 Troubleshooting
+**1. Dành cho giao diện web (Xác thực bằng session):**
+-   `GET /`: Trang chủ.
+-   `POST /api/web/query`: Gửi câu hỏi từ giao diện web.
+-   Các endpoint khác cho đăng nhập, đăng ký, quản lý...
 
-### Lỗi thường gặp
-
-1. **"No LLM clients available"**
-   - Kiểm tra API key trong file `.env`
-   - Đảm bảo đã cài đặt đúng dependencies
-
-2. **"Unsupported file type"**
-   - Chỉ hỗ trợ PDF, DOCX, TXT
-   - Kiểm tra định dạng file
-
-3. **Vector database errors**
-   - Xóa thư mục `data/vector_db` và khởi động lại
-   - Thử chuyển sang vector database khác
-
-### Performance tuning
-
-- Với dataset lớn (>10k documents): Sử dụng FAISS
-- Với dataset nhỏ: ChromaDB đơn giản hơn
-- Điều chỉnh `chunk_size` trong `document_processor.py`
+**2. Dành cho Server-to-Server (Xác thực bằng `x-api-key`):**
+-   `POST /api/query`: Gửi câu hỏi (yêu cầu `SERVER_API_KEY`).
+-   `POST /api/upload-file`: Tải lên tài liệu (yêu cầu `SERVER_API_KEY`).
 
 ## 🤝 Đóng góp
 
-1. Fork repository
-2. Tạo feature branch
-3. Commit changes
-4. Push và tạo Pull Request
+1.  Fork the repository.
+2.  Tạo một feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit các thay đổi của bạn (`git commit -m 'Add some AmazingFeature'`).
+4.  Push lên branch (`git push origin feature/AmazingFeature`).
+5.  Mở một Pull Request.
 
 ## 📄 License
 
-MIT License - xem file LICENSE để biết thêm chi tiết.
-
-## 🆘 Hỗ trợ
-
-Nếu gặp vấn đề, hãy tạo issue trên GitHub hoặc liên hệ qua email.
+Distributed under the MIT License. See `LICENSE` for more information.
