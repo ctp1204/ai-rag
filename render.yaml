@@ -2,7 +2,7 @@ services:
   - type: web
     name: rag-app
     env: python
-    plan: free # or standard, pro, etc.
+    plan: free
     buildCommand: "./build.sh"
     startCommand: "gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api.main:app"
     healthCheckPath: "/"
@@ -17,15 +17,6 @@ services:
         value: "google" # Or your preferred default
       - key: VECTOR_DB_TYPE
         value: "pinecone" # Or your preferred default
-      - key: OPENAI_API_KEY
-        fromSecret: true
-      - key: ANTHROPIC_API_KEY
-        fromSecret: true
-      - key: GOOGLE_API_KEY
-        fromSecret: true
-      - key: SERVER_API_KEY
-        fromSecret: true
-      - key: PINECONE_API_KEY
-        fromSecret: true
-      - key: SECRET_KEY
-        fromSecret: true
+      # NOTE: All secret keys (API keys, etc.) should be added
+      # directly in the Render.com dashboard under the 'Environment' tab.
+      # Do not add them here.
