@@ -34,10 +34,11 @@ class RAGPipeline:
         logger.info(f"Processing query: {question}")
 
         # Bước 1: Tìm kiếm thông tin liên quan trong database local
-        # Bước 1: Tìm kiếm tài liệu liên quan, đã có filter theo score bên trong search()
         found_documents = self.retrieval_engine.search(question)
 
         has_local_data = bool(found_documents)
+        relevant_context = ""
+        response = ""
 
         response_metadata = {
             'has_local_data': has_local_data,
@@ -88,8 +89,11 @@ class RAGPipeline:
             response_metadata['error'] = str(e)
             response_metadata['source'] = 'error'
 
+        # Clean up the final response before returning
+        cleaned_response = self._clean_response(response)
+
         return {
-            'response': response,
+            'response': cleaned_response,
             'metadata': response_metadata,
             'context': relevant_context if has_local_data else None
         }
@@ -102,6 +106,14 @@ class RAGPipeline:
 1. Thêm tài liệu liên quan vào hệ thống
 2. Kiểm tra lại cách đặt câu hỏi
 3. Bật chế độ fallback để tôi có thể sử dụng kiến thức tổng quát"""
+
+    def _clean_response(self, text: str) -> str:
+        """Removes unwanted prefixes from the response."""
+        prefixes_to_remove = ["TRẢ LỜI:", "Trả lời:", "trả lời:"]
+        for prefix in prefixes_to_remove:
+            if text.strip().startswith(prefix):
+                return text.strip()[len(prefix):].strip()
+        return text
 
     def add_document_from_file(self, file_path: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Thêm document từ file"""
