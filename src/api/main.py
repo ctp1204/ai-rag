@@ -150,22 +150,28 @@ async def register_page(request: Request):
     return templates.TemplateResponse("register.html", {"request": request, "user": user})
 
 @app.get("/history", response_class=HTMLResponse)
-async def history_page(request: Request, user: dict = Depends(get_current_user), page: int = 1):
-    """Trang lịch sử học tập với phân trang"""
+async def history_page(request: Request, user: dict = Depends(get_current_user), page: int = 1, domain: str = 'all'):
+    """Trang lịch sử học tập với phân trang và lọc theo lĩnh vực."""
     import math
     per_page = 10
 
-    total_records = db.count_user_qa_history(user['id'])
-    history = db.get_user_qa_history(user['id'], page=page, per_page=per_page)
+    # Lấy danh sách các lĩnh vực mà người dùng đã làm
+    user_domains = db.get_user_domains(user['id'])
 
-    total_pages = math.ceil(total_records / per_page)
+    # Đếm và lấy lịch sử dựa trên lĩnh vực đã chọn
+    total_records = db.count_user_qa_history(user['id'], domain=domain)
+    history = db.get_user_qa_history(user['id'], page=page, per_page=per_page, domain=domain)
+
+    total_pages = math.ceil(total_records / per_page) if total_records > 0 else 0
 
     return templates.TemplateResponse("history.html", {
         "request": request,
         "user": user,
         "history": history,
         "current_page": page,
-        "total_pages": total_pages
+        "total_pages": total_pages,
+        "domains": user_domains,
+        "current_domain": domain
     })
 
 # Override the default 401 error handler to redirect to login
@@ -349,7 +355,19 @@ async def evaluate_answers(request: QAEvaluationRequest, user: dict = Depends(ge
         }
 
         # Lưu lịch sử
-        db.add_qa_history(user['id'], evaluation)
+        # Xác định lĩnh vực và tiêu đề từ câu hỏi đầu tiên
+        domain = None
+        domain_title = None
+        if questions and 'source_doc' in questions[0] and questions[0]['source_doc']:
+            source_doc = questions[0]['source_doc']
+            source_path = source_doc.get('source')
+            if source_path:
+                domain = os.path.basename(source_path)
+                # Lấy title từ metadata, nếu không có thì dùng tên file
+                domain_title = source_doc.get('metadata', {}).get('title', domain)
+
+        # Lưu lịch sử với thông tin lĩnh vực và tiêu đề
+        db.add_qa_history(user['id'], evaluation, domain=domain, domain_title=domain_title)
 
         # Xóa session sau khi đánh giá
         db.delete_qa_session(request.session_id)

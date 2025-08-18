@@ -35,6 +35,8 @@ def init_db():
         total INTEGER NOT NULL,
         results TEXT NOT NULL,
         timestamp DATETIME NOT NULL,
+        domain TEXT,
+        domain_title TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
     """)
@@ -80,30 +82,36 @@ def get_all_users():
     return users
 
 # History functions
-def add_qa_history(user_id, evaluation):
+def add_qa_history(user_id, evaluation, domain: Optional[str] = None, domain_title: Optional[str] = None):
     """Thêm một bản ghi lịch sử Q&A."""
     conn = get_db_connection()
     timestamp = datetime.now()
     results_json = json.dumps(evaluation['results'])
 
     conn.execute("""
-    INSERT INTO qa_history (user_id, score, total, results, timestamp)
-    VALUES (?, ?, ?, ?, ?)
-    """, (user_id, evaluation['total_score'], evaluation['max_score'], results_json, timestamp))
+    INSERT INTO qa_history (user_id, score, total, results, timestamp, domain, domain_title)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, evaluation['total_score'], evaluation['max_score'], results_json, timestamp, domain, domain_title))
 
     conn.commit()
     conn.close()
 
-def get_user_qa_history(user_id: int, page: int = 1, per_page: int = 10):
-    """Lấy lịch sử Q&A của người dùng với phân trang."""
+def get_user_qa_history(user_id: int, page: int = 1, per_page: int = 10, domain: Optional[str] = None):
+    """Lấy lịch sử Q&A của người dùng với phân trang và lọc theo lĩnh vực."""
     conn = get_db_connection()
     offset = (page - 1) * per_page
-    history_rows = conn.execute("""
-        SELECT * FROM qa_history
-        WHERE user_id = ?
-        ORDER BY timestamp DESC
-        LIMIT ? OFFSET ?
-    """, (user_id, per_page, offset)).fetchall()
+
+    query = "SELECT * FROM qa_history WHERE user_id = ?"
+    params = [user_id]
+
+    if domain and domain != 'all':
+        query += " AND domain = ?"
+        params.append(domain)
+
+    query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+    params.extend([per_page, offset])
+
+    history_rows = conn.execute(query, tuple(params)).fetchall()
     conn.close()
 
     # Chuyển đổi dữ liệu trả về
@@ -114,16 +122,40 @@ def get_user_qa_history(user_id: int, page: int = 1, per_page: int = 10):
             'total_score': row['score'],
             'max_score': row['total'],
             'results': json.loads(row['results']),
-            'timestamp': row['timestamp']
+            'timestamp': row['timestamp'],
+            'domain': row['domain']
         })
     return history
 
-def count_user_qa_history(user_id: int) -> int:
-    """Đếm tổng số bản ghi lịch sử của người dùng."""
+def count_user_qa_history(user_id: int, domain: Optional[str] = None) -> int:
+    """Đếm tổng số bản ghi lịch sử của người dùng, có thể lọc theo lĩnh vực."""
     conn = get_db_connection()
-    count = conn.execute("SELECT COUNT(id) FROM qa_history WHERE user_id = ?", (user_id,)).fetchone()[0]
+
+    query = "SELECT COUNT(id) FROM qa_history WHERE user_id = ?"
+    params = [user_id]
+
+    if domain and domain != 'all':
+        query += " AND domain = ?"
+        params.append(domain)
+
+    count = conn.execute(query, tuple(params)).fetchone()[0]
     conn.close()
     return count
+
+def get_user_domains(user_id: int) -> list:
+    """Lấy danh sách các lĩnh vực duy nhất (domain và title) mà người dùng đã làm bài kiểm tra."""
+    conn = get_db_connection()
+    # Sử dụng GROUP BY để lấy domain_title tương ứng với mỗi domain
+    domains = conn.execute("""
+        SELECT domain, domain_title
+        FROM qa_history
+        WHERE user_id = ? AND domain IS NOT NULL
+        GROUP BY domain
+        ORDER BY domain_title
+    """, (user_id,)).fetchall()
+    conn.close()
+    # Trả về list of a dictionary
+    return [{"domain": row['domain'], "title": row['domain_title'] or row['domain']} for row in domains]
 
 # --- QA Session Functions ---
 
