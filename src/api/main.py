@@ -276,15 +276,28 @@ async def health_check():
     """Health check"""
     return rag_pipeline.health_check()
 
+@app.delete("/api/admin/clear-history", tags=["Admin"])
+async def clear_all_history(user: dict = Depends(get_admin_user)):
+    """Xóa toàn bộ lịch sử Q&A và các session đang tồn tại."""
+    try:
+        db.clear_qa_history()
+        db.clear_qa_sessions()
+        return {"message": "Đã xóa thành công toàn bộ lịch sử Q&A và các session."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xóa lịch sử: {str(e)}")
+
 @app.get("/api/qa/generate")
-async def generate_questions(num_questions: int = 3):
+async def generate_questions(num_questions: int = 3, source_document: Optional[str] = None):
     """Tạo câu hỏi cho bài kiểm tra từ dữ liệu thực trong Pinecone"""
     try:
         if num_questions < 1 or num_questions > 10:
             raise HTTPException(status_code=400, detail="Số câu hỏi phải từ 1 đến 10")
 
-        # Tạo câu hỏi từ dữ liệu thực
-        questions = qa_generator.generate_questions(num_questions)
+        # Tạo câu hỏi từ dữ liệu thực, có thể lọc theo tài liệu nguồn
+        questions = qa_generator.generate_questions(
+            num_questions=num_questions,
+            source_document=source_document if source_document and source_document != 'all' else None
+        )
 
         # Tạo session ID để lưu trữ câu hỏi
         import uuid
@@ -387,14 +400,36 @@ async def logout(request: Request):
 
 @app.get("/api/documents")
 async def list_documents(user: dict = Depends(get_current_user)):
-    """Lấy danh sách các tài liệu đã upload."""
+    """Lấy danh sách các lĩnh vực (sources) có trong database."""
     try:
-        document_files = os.listdir(settings.documents_path)
-        # Lọc ra các file ẩn nếu có
-        visible_files = [f for f in document_files if not f.startswith('.')]
-        return {"documents": visible_files}
-    except FileNotFoundError:
-        return {"documents": []}
+        db_info = rag_pipeline.get_database_info()
+        # Lấy thông tin chi tiết từ local metadata để có cả title và source
+        all_docs = rag_pipeline.retrieval_engine.get_all_documents()
+
+        # Tạo một dictionary để nhóm theo source, ưu tiên lấy title đẹp
+        source_info = {}
+        import os
+        for doc in all_docs:
+            source_path = doc.get('source')
+            if not source_path:
+                continue
+
+            source_filename = os.path.basename(source_path)
+
+            # Ưu tiên lấy title từ metadata, nếu không có thì dùng tên file
+            display_text = doc.get('metadata', {}).get('title', source_filename)
+
+            # Chỉ lưu lại nếu chưa có hoặc title hiện tại không phải là tên file
+            if source_filename not in source_info or source_info[source_filename] == source_filename:
+                 source_info[source_filename] = display_text
+
+        # Chuyển thành định dạng list object cho frontend
+        documents_list = [
+            {"value": filename, "text": title}
+            for filename, title in sorted(source_info.items())
+        ]
+
+        return {"documents": documents_list}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

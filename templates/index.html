@@ -79,10 +79,11 @@ function loadDocumentList() {
            list.empty();
            if (data.documents && data.documents.length > 0) {
                data.documents.forEach(function(doc) {
-                   const fileUrl = `/documents/${doc}`;
+                   // Sử dụng doc.value cho URL và doc.text cho phần hiển thị
+                   const fileUrl = `/documents/${doc.value}`;
                    const listItem = `
                        <a href="${fileUrl}" download class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                           <span><i class="fas fa-file-alt me-2"></i> ${doc}</span>
+                           <span><i class="fas fa-file-alt me-2"></i> ${doc.text}</span>
                            <i class="fas fa-download"></i>
                        </a>
                    `;

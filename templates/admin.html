@@ -85,6 +85,12 @@
                        <i class="fas fa-trash"></i> Xóa toàn bộ DB
                    </button>
                </div>
+               <div class="mt-3 border-top pt-3">
+                   <button class="btn btn-warning btn-sm" id="clear-history-btn">
+                       <i class="fas fa-eraser"></i> Xóa Lịch Sử Q&A
+                   </button>
+                   <small class="d-block mt-1 text-muted">Chỉ xóa lịch sử làm bài và các session, không xóa dữ liệu vector.</small>
+               </div>
            </div>
        </div>
    </div>
@@ -156,6 +162,22 @@ $(document).ready(function() {
    $('#add-text-btn').click(function() {
        addText();
    });
+});
+
+$('#clear-history-btn').click(function() {
+    if (confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử Q&A và các session đang làm dở? Hành động này không thể hoàn tác!')) {
+        $.ajax({
+            url: '/api/admin/clear-history',
+            method: 'DELETE',
+            success: function(data) {
+                alert(data.message || 'Đã xóa lịch sử thành công!');
+                // Optionally, you can visually confirm by hiding history-related elements
+            },
+            error: function(xhr) {
+                alert('Lỗi khi xóa lịch sử: ' + (xhr.responseJSON?.detail || 'Lỗi không xác định'));
+            }
+        });
+    }
 });
 
 function searchDocuments() {

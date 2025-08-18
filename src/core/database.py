@@ -156,5 +156,22 @@ def delete_qa_session(session_id: str):
     conn.close()
 
 
+def clear_qa_history():
+    """Xóa toàn bộ dữ liệu khỏi bảng qa_history."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM qa_history")
+    conn.commit()
+    conn.close()
+    print("Cleared all data from qa_history table.")
+
+def clear_qa_sessions():
+    """Xóa toàn bộ dữ liệu khỏi bảng qa_sessions."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM qa_sessions")
+    conn.commit()
+    conn.close()
+    print("Cleared all data from qa_sessions table.")
+
+
 if __name__ == '__main__':
     init_db()

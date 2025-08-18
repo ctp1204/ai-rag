@@ -15,14 +15,35 @@ class QAGenerator:
         self.retrieval_engine = retrieval_engine
         self.llm_manager = llm_manager
 
-    def generate_questions(self, num_questions: int = 3) -> List[Dict[str, Any]]:
-        """Tạo câu hỏi dựa trên dữ liệu có sẵn trong Pinecone/Vector DB"""
+    def generate_questions(self, num_questions: int = 3, source_document: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Tạo câu hỏi dựa trên dữ liệu có sẵn trong Vector DB.
+        Có thể lọc theo tài liệu nguồn cụ thể.
+        """
         try:
             # Lấy tất cả documents từ vector database
-            all_docs = self.retrieval_engine.get_all_documents()
+            all_docs_raw = self.retrieval_engine.get_all_documents()
+
+            if not all_docs_raw:
+                logger.warning("Không có dữ liệu trong database, không thể tạo câu hỏi.")
+                return []
+
+            # Lọc tài liệu theo nguồn nếu được chỉ định
+            if source_document:
+                import os
+                all_docs = [
+                    doc for doc in all_docs_raw
+                    # Chỉ tìm kiếm dựa trên trường 'source' cho chính xác
+                    if os.path.basename(doc.get('source', '')) == source_document
+                ]
+                logger.info(f"Đã lọc, chỉ sử dụng {len(all_docs)} chunks từ tài liệu '{source_document}'.")
+            else:
+                all_docs = all_docs_raw
+                logger.info("Sử dụng tất cả tài liệu để tạo câu hỏi.")
+
 
             if not all_docs:
-                logger.warning("Không có dữ liệu trong database, không thể tạo câu hỏi.")
+                logger.warning(f"Không tìm thấy tài liệu nào cho nguồn '{source_document}'.")
                 return []
 
             logger.info(f"Tìm thấy {len(all_docs)} documents trong database")

@@ -120,7 +120,11 @@ class RetrievalEngine:
             # Đếm số documents theo source
             source_counts = {}
             for doc in all_docs:
+                # Lấy source từ metadata để đảm bảo tính nhất quán
                 source = doc.get('metadata', {}).get('source', 'Unknown')
+                if source == 'Unknown' and 'source' in doc: # Fallback cho cấu trúc cũ
+                    source = doc.get('source')
+
                 source_counts[source] = source_counts.get(source, 0) + 1
 
             return {
