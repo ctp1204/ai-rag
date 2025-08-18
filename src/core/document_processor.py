@@ -7,6 +7,7 @@ import docx
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from config import settings
+import re
 
 class DocumentProcessor:
     def __init__(self):
@@ -93,17 +94,80 @@ class DocumentProcessor:
     def chunk_text(self, text: str, file_path: str = "") -> List[str]:
        """
        Chia text thành các chunk.
-       Ưu tiên chia theo định dạng Q&A cho file .txt, nếu không thì chia theo kích thước.
+       Ưu tiên chia theo định dạng Q&A cho file .txt; nếu không, dùng chunking ngữ nghĩa.
        """
-       # Kiểm tra nếu là file .txt và có định dạng Q&A
+       # Ưu tiên định dạng Q&A nếu có
        if file_path.endswith('.txt') and ("Câu hỏi:" in text or "Câu-hỏi:" in text):
            return self.chunk_qna_text(text)
-       else:
-           return self.chunk_text_by_size(text)
+       # Mặc định: chunk ngữ nghĩa theo đoạn/câu
+
+       return self.chunk_text_semantic(text)
+
+    def chunk_text_semantic(self, text: str, max_words: int = 220, overlap_words: int = 40) -> List[str]:
+        """Chia text theo đoạn và câu, tích lũy đến ngưỡng từ; có overlap để giữ ngữ cảnh."""
+        # Tách theo đoạn trống trước
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        chunks: List[str] = []
+        buffer_sentences: List[str] = []
+        buffer_len = 0
+
+        def sentence_tokenize(paragraph: str) -> List[str]:
+            # Tách câu đơn giản theo dấu câu. Có thể cải tiến bằng nltk nếu cần.
+            return [s.strip() for s in re.split(r'(?<=[\.!?…])\s+', paragraph) if s.strip()]
+
+        def flush_buffer():
+            nonlocal buffer_sentences, buffer_len
+            if buffer_sentences:
+                chunks.append(" ".join(buffer_sentences))
+                # Giữ overlap ở cấp độ câu (ước lượng 10 từ/câu)
+                if overlap_words > 0:
+                    approx_words_per_sentence = 10
+                    keep_sentences = max(0, min(len(buffer_sentences), overlap_words // approx_words_per_sentence))
+                    buffer_sentences = buffer_sentences[-keep_sentences:]
+                    buffer_len = len(" ".join(buffer_sentences).split())
+                else:
+                    buffer_sentences = []
+                    buffer_len = 0
+
+        for para in paragraphs:
+            sentences = sentence_tokenize(para)
+            for s in sentences:
+                words_in_s = len(s.split())
+                # Nếu một câu quá dài, cắt theo size truyền thống để tránh vượt ngưỡng quá nhiều
+                if words_in_s >= max_words * 1.2:
+                    # Cắt thô câu dài thành các đoạn nhỏ hơn
+                    long_words = s.split()
+                    for i in range(0, len(long_words), max_words):
+                        segment = " ".join(long_words[i:i + max_words])
+                        if buffer_len + len(segment.split()) > max_words and buffer_sentences:
+                            flush_buffer()
+                        buffer_sentences.append(segment)
+                        buffer_len += len(segment.split())
+                else:
+                    if buffer_len + words_in_s > max_words and buffer_sentences:
+                        flush_buffer()
+                    buffer_sentences.append(s)
+                    buffer_len += words_in_s
+
+        # Flush phần còn lại
+        if buffer_sentences:
+            chunks.append(" ".join(buffer_sentences))
+
+        # Fallback nếu không tạo được chunk
+        if not chunks:
+            return self.chunk_text_by_size(text)
+
+        return chunks
 
     def create_embeddings(self, texts: List[str]) -> np.ndarray:
         """Tạo embeddings cho list text"""
-        embeddings = self.embedding_model.encode(texts)
+        # Hỗ trợ tiền tố hóa cho các model họ E5 nếu người dùng đổi model trong cấu hình
+        model_name = settings.embedding_model.lower()
+        if "e5" in model_name:
+            processed_texts = [("passage: " + t) for t in texts]
+            embeddings = self.embedding_model.encode(processed_texts)
+        else:
+            embeddings = self.embedding_model.encode(texts)
         return embeddings
 
     def process_document(self, file_path: str, metadata: Dict[str, Any] = None) -> List[Dict[str, Any]]:

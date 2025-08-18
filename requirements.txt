@@ -19,6 +19,7 @@ transformers
 pinecone
 faiss-cpu
 chromadb
+rank-bm25
 
 # Document Processing
 pypdf2

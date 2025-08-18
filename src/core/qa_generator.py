@@ -30,12 +30,13 @@ class QAGenerator:
             # Tạo pool câu hỏi từ tất cả documents
             question_pool = []
             unique_questions = set()
+            normalized_answers: List[str] = []  # dùng để loại trùng đáp án
 
             # Xáo trộn tài liệu để tăng tính ngẫu nhiên
             random.shuffle(all_docs)
 
             # Lặp cho đến khi có đủ câu hỏi hoặc không thể tạo thêm
-            max_attempts = len(all_docs) * 2 # Giới hạn số lần thử để tránh lặp vô hạn
+            max_attempts = len(all_docs) * 4 # tăng số lần thử để đa dạng hơn
             attempts = 0
             doc_index = 0
 
@@ -43,13 +44,26 @@ class QAGenerator:
                 # Lấy doc và lặp vòng lại nếu cần
                 doc = all_docs[doc_index % len(all_docs)]
 
-                qa_pair = self._generate_qa_from_document(doc, existing_questions=list(unique_questions))
+                existing_answers_text = [q['correct_answer'] for q in question_pool]
+                qa_pair = self._generate_qa_from_document(
+                    doc,
+                    existing_questions=list(unique_questions),
+                    existing_answers=existing_answers_text
+                )
 
                 if qa_pair:
                     question_text = qa_pair['question'].strip().lower()
-                    if question_text not in unique_questions:
+                    answer_text = qa_pair['correct_answer']
+                    answer_norm = self._normalize_text(answer_text)
+
+                    if question_text in unique_questions:
+                        pass
+                    elif self._is_duplicate_answer(answer_norm, normalized_answers):
+                        logger.info("Bỏ qua câu hỏi do đáp án trùng với câu đã có")
+                    else:
                         question_pool.append(qa_pair)
                         unique_questions.add(question_text)
+                        normalized_answers.append(answer_norm)
                         logger.info(f"Đã tạo câu hỏi thứ {len(question_pool)}/{num_questions}")
 
                 doc_index += 1
@@ -68,7 +82,7 @@ class QAGenerator:
             logger.error(f"Error generating questions: {str(e)}")
             return []
 
-    def _generate_qa_from_document(self, doc: Dict[str, Any], existing_questions: List[str] = []) -> Optional[Dict[str, Any]]:
+    def _generate_qa_from_document(self, doc: Dict[str, Any], existing_questions: List[str] = [], existing_answers: List[str] = []) -> Optional[Dict[str, Any]]:
         """
         Tạo một cặp câu hỏi và câu trả lời (QA) từ một document bằng LLM.
         """
@@ -85,6 +99,14 @@ class QAGenerator:
         - {questions_str}
         """
 
+        existing_answers_prompt = ""
+        if existing_answers:
+            # Không yêu cầu trùng đáp án đã có
+            existing_answers_prompt = f"""
+        TRÁNH LẶP LẠI CÙNG ĐÁP ÁN với các đáp án đã có sau đây (đừng tạo câu hỏi dẫn tới cùng một câu trả lời):
+        - """ + "\n        - ".join(existing_answers)
+
+
         # Cải tiến prompt để LLM tạo câu hỏi và trả lời chất lượng hơn
         prompt = f"""
         Bạn là một chuyên gia tạo câu hỏi và câu trả lời.
@@ -95,6 +117,7 @@ class QAGenerator:
         {text}
         ---
         {existing_questions_prompt}
+        {existing_answers_prompt}
         Yêu cầu:
         1.  Câu hỏi phải tập trung vào một chi tiết quan trọng, cụ thể trong văn bản.
         2.  Câu trả lời phải được rút ra trực tiếp từ văn bản và chính xác tuyệt đối.
@@ -164,6 +187,27 @@ class QAGenerator:
                 answer = parts[1].strip() if len(parts) > 1 else "Không xác định"
 
         return question or "Câu hỏi không xác định", answer or "Đáp án không xác định"
+
+    # -------------------------------
+    # De-dup utilities for answers
+    # -------------------------------
+    def _normalize_text(self, text: str) -> str:
+        """Chuẩn hóa text để so sánh trùng lặp (lower, bỏ dấu câu, khoảng trắng thừa)."""
+        t = text.lower().strip()
+        t = re.sub(r"[\s\n\r]+", " ", t)
+        t = re.sub(r"[\.;:,!?()\[\]{}'\"]+", "", t)
+        return t
+
+    def _is_duplicate_answer(self, answer_norm: str, existing_normalized_answers: List[str], threshold: int = 92) -> bool:
+        """Kiểm tra đáp án trùng với danh sách đã có bằng fuzzy matching.
+        threshold mặc định 92/100 để chỉ loại khi gần như cùng một ý.
+        """
+        for a in existing_normalized_answers:
+            if a == answer_norm:
+                return True
+            if fuzz.token_sort_ratio(a, answer_norm) >= threshold:
+                return True
+        return False
 
 
 
