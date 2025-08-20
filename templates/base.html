@@ -92,14 +92,20 @@
             </a>
             <div class="navbar-nav ms-auto">
                 {% if user %}
-                    <a class="nav-link" href="/">Chat</a>
-                    <a class="nav-link" href="/qa">Q&A Learning</a>
-                    <a class="nav-link" href="/history">Lịch sử</a>
+                    <a class="nav-link" href="/"><i class="fas fa-comments"></i> Trò chuyện</a>
+                    <a class="nav-link" href="/qa"><i class="fas fa-graduation-cap"></i> Luyện tập</a>
+                    <a class="nav-link" href="/history"><i class="fas fa-history"></i> Lịch sử</a>
                     {% if user.role == 'admin' %}
-                    <a class="nav-link" href="/admin">Quản lý</a>
+                    <a class="nav-link" href="/admin"><i class="fas fa-cogs"></i> Quản lý</a>
                     {% endif %}
-                    <span class="navbar-text">Chào, {{ user.username }}</span>
-                    <a class="nav-link" href="#" id="logout-btn">Đăng xuất</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user"></i>  {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a></li>
+                        </ul>
+                    </li>
                 {% else %}
                     <a class="nav-link" href="/login">Đăng nhập</a>
                 {% endif %}
