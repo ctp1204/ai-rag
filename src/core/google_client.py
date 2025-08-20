@@ -7,7 +7,7 @@ class GoogleClient(LLMClient):
 
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or settings.google_api_key
-        self.model_name = model or settings.gemini_model
+        self.model_name = model or "gemini-2.5-flash-preview-05-20"
 
         if not self.api_key:
             raise ValueError("Google API key is required")

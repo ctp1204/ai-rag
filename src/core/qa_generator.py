@@ -15,10 +15,10 @@ class QAGenerator:
         self.retrieval_engine = retrieval_engine
         self.llm_manager = llm_manager
 
-    def generate_questions(self, num_questions: int = 3, source_document: Optional[str] = None) -> List[Dict[str, Any]]:
+    def generate_questions(self, num_questions: int = 3, source_document: Optional[str] = None, provider: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Tạo câu hỏi dựa trên dữ liệu có sẵn trong Vector DB.
-        Có thể lọc theo tài liệu nguồn cụ thể.
+        Có thể lọc theo tài liệu nguồn cụ thể và chọn nhà cung cấp LLM.
         """
         try:
             # Lấy tất cả documents từ vector database
@@ -69,7 +69,8 @@ class QAGenerator:
                 qa_pair = self._generate_qa_from_document(
                     doc,
                     existing_questions=list(unique_questions),
-                    existing_answers=existing_answers_text
+                    existing_answers=existing_answers_text,
+                    provider=provider
                 )
 
                 if qa_pair:
@@ -103,7 +104,7 @@ class QAGenerator:
             logger.error(f"Error generating questions: {str(e)}")
             return []
 
-    def _generate_qa_from_document(self, doc: Dict[str, Any], existing_questions: List[str] = [], existing_answers: List[str] = []) -> Optional[Dict[str, Any]]:
+    def _generate_qa_from_document(self, doc: Dict[str, Any], existing_questions: List[str] = [], existing_answers: List[str] = [], provider: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Tạo một cặp câu hỏi và câu trả lời (QA) từ một document bằng LLM.
         """
@@ -141,19 +142,22 @@ class QAGenerator:
         {existing_answers_prompt}
         Yêu cầu:
         1.  Câu hỏi phải tập trung vào một chi tiết quan trọng, cụ thể trong văn bản.
-        2.  Câu trả lời phải được rút ra trực tiếp từ văn bản và chính xác tuyệt đối.
-        3.  Không thêm bất kỳ thông tin nào không có trong văn bản.
-        4.  Trả về kết quả dưới dạng một đối tượng JSON duy nhất có cấu trúc:
-            {{"question": "câu hỏi của bạn", "answer": "câu trả lời chính xác"}}
+        2.  Câu trả lời phải là một câu hoàn chỉnh, giải thích đầy đủ cho câu hỏi và được rút ra trực tiếp từ văn bản.
+        3.  Câu hỏi phải tự nhiên, không bắt đầu bằng các cụm từ như "Theo văn bản," hay "Dựa vào nội dung,".
+        4.  Câu trả lời phải chính xác tuyệt đối và không thêm bất kỳ thông tin nào không có trong văn bản.
+        5.  Trả về kết quả dưới dạng một đối tượng JSON duy nhất có cấu trúc:
+            {{"question": "câu hỏi của bạn", "answer": "câu trả lời đầy đủ và chính xác"}}
         """
 
         try:
             if self.llm_manager.is_available():
-                response = self.llm_manager.generate_response(prompt, context="")
+                response = self.llm_manager.generate_response(prompt, context="", provider=provider)
 
                 # Parse a JSON response
                 import json
-                qa_data = json.loads(response)
+                # Thêm bước làm sạch để loại bỏ markdown code block
+                clean_response = re.sub(r'^```json\s*|\s*```$', '', response.strip())
+                qa_data = json.loads(clean_response)
 
                 question = qa_data.get("question")
                 answer = qa_data.get("answer")
@@ -316,7 +320,9 @@ class QAGenerator:
             if self.llm_manager.is_available():
                 response = self.llm_manager.generate_response(prompt, context="")
                 import json
-                result = json.loads(response)
+                # Thêm bước làm sạch để loại bỏ markdown code block
+                clean_response = re.sub(r'^```json\s*|\s*```$', '', response.strip())
+                result = json.loads(clean_response)
                 score = float(result.get("score", 0.0))
                 # Đảm bảo điểm số nằm trong khoảng 0.0 và 1.0
                 return max(0.0, min(1.0, score))

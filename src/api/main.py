@@ -293,7 +293,7 @@ async def clear_all_history(user: dict = Depends(get_admin_user)):
         raise HTTPException(status_code=500, detail=f"Lỗi khi xóa lịch sử: {str(e)}")
 
 @app.get("/api/qa/generate")
-async def generate_questions(num_questions: int = 3, source_document: Optional[str] = None):
+async def generate_questions(num_questions: int = 3, source_document: Optional[str] = None, provider: Optional[str] = None):
     """Tạo câu hỏi cho bài kiểm tra từ dữ liệu thực trong Pinecone"""
     try:
         if num_questions < 1 or num_questions > 10:
@@ -302,7 +302,8 @@ async def generate_questions(num_questions: int = 3, source_document: Optional[s
         # Tạo câu hỏi từ dữ liệu thực, có thể lọc theo tài liệu nguồn
         questions = qa_generator.generate_questions(
             num_questions=num_questions,
-            source_document=source_document if source_document and source_document != 'all' else None
+            source_document=source_document if source_document and source_document != 'all' else None,
+            provider=provider
         )
 
         # Tạo session ID để lưu trữ câu hỏi

@@ -91,17 +91,65 @@ class DocumentProcessor:
 
         return chunks
 
-    def chunk_text(self, text: str, file_path: str = "") -> List[str]:
-       """
-       Chia text thành các chunk.
-       Ưu tiên chia theo định dạng Q&A cho file .txt; nếu không, dùng chunking ngữ nghĩa.
-       """
-       # Ưu tiên định dạng Q&A nếu có
-       if file_path.endswith('.txt') and ("Câu hỏi:" in text or "Câu-hỏi:" in text):
-           return self.chunk_qna_text(text)
-       # Mặc định: chunk ngữ nghĩa theo đoạn/câu
+    def chunk_interview_scenarios(self, text: str) -> List[str]:
+        """Chia văn bản tài liệu kịch bản phỏng vấn thành các chunk logic."""
+        # Tách toàn bộ văn bản dựa trên "Tình huống \d+:"
+        # Điều này tạo ra một danh sách với phần giới thiệu chung ở đầu
+        # và mỗi tình huống là một phần tử.
+        base_splits = re.split(r'(Tình huống \d+:)', text)
 
-       return self.chunk_text_semantic(text)
+        chunks = []
+        # Xử lý phần giới thiệu (trước tình huống đầu tiên)
+        intro_part = base_splits[0]
+
+        # Chia phần giới thiệu thành "Bảng chấm điểm" và "Thang đánh giá"
+        scoring_guide_match = re.search(r'Bảng chấm điểm \(Scoring Guide\)', intro_part)
+        evaluation_scale_match = re.search(r'Thang đánh giá tổng quát:', intro_part)
+
+        if scoring_guide_match and evaluation_scale_match:
+            # Tách phần Bảng chấm điểm
+            scoring_guide_text = intro_part[scoring_guide_match.start():evaluation_scale_match.start()]
+            chunks.append(scoring_guide_text.strip())
+
+            # Phần còn lại là Thang đánh giá
+            evaluation_scale_text = intro_part[evaluation_scale_match.start():]
+            # Tìm và tách phần Danh sách tình huống nếu có
+            scenario_list_match = re.search(r'Danh sách tình huống', evaluation_scale_text)
+            if scenario_list_match:
+                chunks.append(evaluation_scale_text[:scenario_list_match.start()].strip())
+            else:
+                 chunks.append(evaluation_scale_text.strip())
+
+        else:
+            # Nếu không tìm thấy cấu trúc cụ thể, coi cả phần giới thiệu là một chunk
+            if intro_part.strip():
+                chunks.append(intro_part.strip())
+
+        # Ghép lại các phần "Tình huống" đã tách
+        for i in range(1, len(base_splits), 2):
+            if i + 1 < len(base_splits):
+                # Ghép "Tình huống X:" với nội dung của nó
+                scenario_chunk = base_splits[i] + base_splits[i+1]
+                chunks.append(scenario_chunk.strip())
+
+        return [chunk for chunk in chunks if chunk]
+
+
+    def chunk_text(self, text: str, file_path: str = "") -> List[str]:
+        """
+        Chia text thành các chunk.
+        Ưu tiên chia theo định dạng Q&A cho file .txt; nếu không, dùng chunking ngữ nghĩa.
+        """
+        # Xử lý đặc biệt cho file kịch bản phỏng vấn
+        if 'bo_tinh_huong_phong_van_it.docx' in file_path:
+            return self.chunk_interview_scenarios(text)
+
+        # Ưu tiên định dạng Q&A nếu có
+        if file_path.endswith('.txt') and ("Câu hỏi:" in text or "Câu-hỏi:" in text):
+            return self.chunk_qna_text(text)
+
+        # Mặc định: chunk ngữ nghĩa theo đoạn/câu
+        return self.chunk_text_semantic(text)
 
     def chunk_text_semantic(self, text: str, max_words: int = 220, overlap_words: int = 40) -> List[str]:
         """Chia text theo đoạn và câu, tích lũy đến ngưỡng từ; có overlap để giữ ngữ cảnh."""

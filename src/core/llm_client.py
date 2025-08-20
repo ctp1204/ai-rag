@@ -16,7 +16,7 @@ class OpenAIClient(LLMClient):
 
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or settings.openai_api_key
-        self.model = model or settings.llm_model
+        self.model = model or "gpt-3.5-turbo"
 
         if not self.api_key:
             raise ValueError("OpenAI API key is required")
@@ -65,7 +65,7 @@ class AnthropicClient(LLMClient):
 
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or settings.anthropic_api_key
-        self.model = model or settings.llm_model
+        self.model = model or "claude-3-sonnet-20240229"
 
         if not self.api_key:
             raise ValueError("Anthropic API key is required")
