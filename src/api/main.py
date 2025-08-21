@@ -113,6 +113,80 @@ async def admin(request: Request, user: dict = Depends(get_admin_user)):
         "user": user
     })
 
+@app.get("/admin/token-usage", response_class=HTMLResponse)
+async def token_usage_page(
+    request: Request,
+    user: dict = Depends(get_admin_user),
+    f_user: Optional[int] = None,
+    f_category: Optional[str] = None,
+    f_provider: Optional[str] = None
+):
+    """Trang quản lý token usage với bộ lọc và gom nhóm."""
+    from collections import defaultdict
+
+    # Lấy dữ liệu gốc, chưa gom nhóm
+    raw_usage_data = db.get_token_usage_summary(
+        user_id=f_user,
+        category=f_category,
+        provider=f_provider
+    )
+
+    # Gom nhóm dữ liệu bằng Python
+    grouped_data = defaultdict(lambda: {'total_tokens': 0, 'categories': []})
+
+    for item in raw_usage_data:
+        key = (item['username'], item['provider'])
+
+        # Cộng dồn token
+        grouped_data[key]['total_tokens'] += item['total_tokens']
+
+        # Thêm category và token của nó vào danh sách
+        category_map = {
+            'QA Generation': {'name': 'Tạo câu hỏi luyện tập', 'class': 'bg-primary'},
+            'QA Evaluation': {'name': 'Đánh giá luyện tập', 'class': 'bg-info text-dark'},
+            'Chat': {'name': 'Trò chuyện', 'class': 'bg-success'}
+        }
+        default_category = {'name': item['category'], 'class': 'bg-secondary'}
+
+        category_info = category_map.get(item['category'], default_category)
+
+        grouped_data[key]['categories'].append({
+            'name': category_info['name'],
+            'class': category_info['class'],
+            'tokens': item['total_tokens']
+        })
+
+    # Chuyển đổi định dạng để dễ dàng hiển thị trên template
+    usage_data = []
+    for (username, provider), details in grouped_data.items():
+        # Sắp xếp các category trong mỗi group, ví dụ theo tên
+        details['categories'].sort(key=lambda x: x['name'])
+
+        usage_data.append({
+            'username': username,
+            'provider': provider,
+            'total_tokens': details['total_tokens'],
+            'category_summary': details['categories'] # Bây giờ là list of dicts
+        })
+
+    # Sắp xếp lại kết quả
+    usage_data.sort(key=lambda x: (x['username'], x['provider']))
+
+    # Lấy dữ liệu cho các bộ lọc dropdown
+    filter_data = db.get_distinct_token_usage_filters()
+
+    return templates.TemplateResponse("token_usage.html", {
+        "request": request,
+        "usage_data": usage_data,
+        "filters": filter_data,
+        "current_filters": {
+            "user": f_user,
+            "category": f_category,
+            "provider": f_provider
+        },
+        "user": user
+    })
+
 @app.get("/admin/users", response_class=HTMLResponse)
 async def user_management(request: Request, user: dict = Depends(get_admin_user)):
     """Trang quản lý người dùng"""
@@ -187,10 +261,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     raise exc
 
 @app.post("/api/query")
-async def query(request: QueryRequest):
+async def query(request: QueryRequest, user: dict = Depends(get_current_user)):
     """API endpoint để hỏi đáp"""
     try:
         result = rag_pipeline.query(
+            user_id=user['id'],
             question=request.question,
             use_fallback=request.use_fallback,
             provider=request.provider
@@ -293,7 +368,7 @@ async def clear_all_history(user: dict = Depends(get_admin_user)):
         raise HTTPException(status_code=500, detail=f"Lỗi khi xóa lịch sử: {str(e)}")
 
 @app.get("/api/qa/generate")
-async def generate_questions(num_questions: int = 3, source_document: Optional[str] = None, provider: Optional[str] = None):
+async def generate_questions(user: dict = Depends(get_current_user), num_questions: int = 3, source_document: Optional[str] = None, provider: Optional[str] = None):
     """Tạo câu hỏi cho bài kiểm tra từ dữ liệu thực trong Pinecone"""
     try:
         if num_questions < 1 or num_questions > 10:
@@ -301,6 +376,7 @@ async def generate_questions(num_questions: int = 3, source_document: Optional[s
 
         # Tạo câu hỏi từ dữ liệu thực, có thể lọc theo tài liệu nguồn
         questions = qa_generator.generate_questions(
+            user_id=user['id'],
             num_questions=num_questions,
             source_document=source_document if source_document and source_document != 'all' else None,
             provider=provider
@@ -345,7 +421,7 @@ async def evaluate_answers(request: QAEvaluationRequest, user: dict = Depends(ge
             raise HTTPException(status_code=400, detail="Số câu trả lời không khớp với số câu hỏi")
 
         # Đánh giá câu trả lời
-        evaluation = qa_generator.evaluate_answers(questions, request.user_answers)
+        evaluation = qa_generator.evaluate_answers(user['id'], questions, request.user_answers)
 
         # Thêm thông tin về nguồn dữ liệu
         evaluation['data_info'] = {

@@ -15,7 +15,7 @@ class QAGenerator:
         self.retrieval_engine = retrieval_engine
         self.llm_manager = llm_manager
 
-    def generate_questions(self, num_questions: int = 3, source_document: Optional[str] = None, provider: Optional[str] = None) -> List[Dict[str, Any]]:
+    def generate_questions(self, user_id: int, num_questions: int = 3, source_document: Optional[str] = None, provider: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Tạo câu hỏi dựa trên dữ liệu có sẵn trong Vector DB.
         Có thể lọc theo tài liệu nguồn cụ thể và chọn nhà cung cấp LLM.
@@ -67,6 +67,7 @@ class QAGenerator:
 
                 existing_answers_text = [q['correct_answer'] for q in question_pool]
                 qa_pair = self._generate_qa_from_document(
+                    user_id,
                     doc,
                     existing_questions=list(unique_questions),
                     existing_answers=existing_answers_text,
@@ -104,7 +105,7 @@ class QAGenerator:
             logger.error(f"Error generating questions: {str(e)}")
             return []
 
-    def _generate_qa_from_document(self, doc: Dict[str, Any], existing_questions: List[str] = [], existing_answers: List[str] = [], provider: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def _generate_qa_from_document(self, user_id: int, doc: Dict[str, Any], existing_questions: List[str] = [], existing_answers: List[str] = [], provider: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Tạo một cặp câu hỏi và câu trả lời (QA) từ một document bằng LLM.
         """
@@ -151,12 +152,23 @@ class QAGenerator:
 
         try:
             if self.llm_manager.is_available():
-                response = self.llm_manager.generate_response(prompt, context="", provider=provider)
+                response_text, usage_data = self.llm_manager.generate_response(prompt, context="", provider=provider)
+
+                # Ghi lại token usage
+                from . import database as db
+                db.add_token_usage(
+                    user_id=user_id,
+                    category="QA Generation",
+                    provider=usage_data['provider'],
+                    model=usage_data['model_name'],
+                    input_tokens=usage_data['input_tokens'],
+                    output_tokens=usage_data['output_tokens']
+                )
 
                 # Parse a JSON response
                 import json
                 # Thêm bước làm sạch để loại bỏ markdown code block
-                clean_response = re.sub(r'^```json\s*|\s*```$', '', response.strip())
+                clean_response = re.sub(r'^```json\s*|\s*```$', '', response_text.strip())
                 qa_data = json.loads(clean_response)
 
                 question = qa_data.get("question")
@@ -236,7 +248,7 @@ class QAGenerator:
 
 
 
-    def evaluate_answers(self, questions: List[Dict[str, Any]], user_answers: List[str]) -> Dict[str, Any]:
+    def evaluate_answers(self, user_id: int, questions: List[Dict[str, Any]], user_answers: List[str]) -> Dict[str, Any]:
         """Đánh giá câu trả lời của user"""
         if len(questions) != len(user_answers):
             raise ValueError("Số câu hỏi và câu trả lời không khớp")
@@ -248,7 +260,7 @@ class QAGenerator:
             correct_answer = question['correct_answer']
 
             # Tính điểm cho câu trả lời
-            score = self._calculate_answer_score(user_answer, correct_answer)
+            score = self._calculate_answer_score(user_id, user_answer, correct_answer, session_id=question.get('session_id'))
 
             # Tạo feedback
             feedback = self._generate_feedback(user_answer, correct_answer, score)
@@ -279,7 +291,7 @@ class QAGenerator:
             'overall_feedback': overall_feedback
         }
 
-    def _calculate_answer_score(self, user_answer: str, correct_answer: str) -> float:
+    def _calculate_answer_score(self, user_id: int, user_answer: str, correct_answer: str, session_id: Optional[str] = None) -> float:
         """
         Tính điểm cho câu trả lời bằng cách sử dụng LLM để so sánh ngữ nghĩa.
         """
@@ -318,10 +330,23 @@ class QAGenerator:
 
         try:
             if self.llm_manager.is_available():
-                response = self.llm_manager.generate_response(prompt, context="")
+                response_text, usage_data = self.llm_manager.generate_response(prompt, context="")
+
+                # Ghi lại token usage
+                from . import database as db
+                db.add_token_usage(
+                    user_id=user_id,
+                    session_id=session_id,
+                    category="QA Evaluation",
+                    provider=usage_data['provider'],
+                    model=usage_data['model_name'],
+                    input_tokens=usage_data['input_tokens'],
+                    output_tokens=usage_data['output_tokens']
+                )
+
                 import json
                 # Thêm bước làm sạch để loại bỏ markdown code block
-                clean_response = re.sub(r'^```json\s*|\s*```$', '', response.strip())
+                clean_response = re.sub(r'^```json\s*|\s*```$', '', response_text.strip())
                 result = json.loads(clean_response)
                 score = float(result.get("score", 0.0))
                 # Đảm bảo điểm số nằm trong khoảng 0.0 và 1.0

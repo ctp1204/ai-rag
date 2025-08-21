@@ -15,14 +15,28 @@ class GoogleClient(LLMClient):
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel(self.model_name)
 
-    def generate_response(self, prompt: str, context: str = "", **kwargs) -> str:
-        """Tạo response từ Google Gemini"""
+    def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
+        """Tạo response từ Google Gemini và trả về cả usage."""
         full_prompt = self._create_full_prompt(prompt, context)
 
         try:
-            # Sử dụng streaming để có thể xử lý các response lớn
+            # Đếm input tokens
+            input_tokens = self.model.count_tokens(full_prompt).total_tokens
+
             response = self.model.generate_content(full_prompt)
-            return response.text
+            response_text = response.text
+
+            # Đếm output tokens (ước tính)
+            output_tokens = self.model.count_tokens(response_text).total_tokens
+
+            usage_dict = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "model_name": self.model_name,
+                "provider": "google"
+            }
+            return response_text, usage_dict
         except Exception as e:
             raise Exception(f"Google Gemini API error: {str(e)}")
 

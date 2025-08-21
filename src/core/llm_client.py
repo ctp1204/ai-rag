@@ -8,7 +8,7 @@ class LLMClient(ABC):
     """Abstract base class cho LLM clients"""
 
     @abstractmethod
-    def generate_response(self, prompt: str, context: str = "", **kwargs) -> str:
+    def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
         pass
 
 class OpenAIClient(LLMClient):
@@ -24,8 +24,8 @@ class OpenAIClient(LLMClient):
         openai.api_key = self.api_key
         self.client = openai.OpenAI(api_key=self.api_key)
 
-    def generate_response(self, prompt: str, context: str = "", **kwargs) -> str:
-        """Tạo response từ OpenAI"""
+    def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
+        """Tạo response từ OpenAI và trả về cả usage."""
         system_message = self._create_system_message(context)
 
         messages = [
@@ -40,7 +40,15 @@ class OpenAIClient(LLMClient):
                 temperature=kwargs.get('temperature', 0.7),
                 max_tokens=kwargs.get('max_tokens', 1000)
             )
-            return response.choices[0].message.content
+            usage = response.usage
+            usage_dict = {
+                "input_tokens": usage.prompt_tokens,
+                "output_tokens": usage.completion_tokens,
+                "total_tokens": usage.total_tokens,
+                "model_name": self.model,
+                "provider": "openai"
+            }
+            return response.choices[0].message.content, usage_dict
         except Exception as e:
             raise Exception(f"OpenAI API error: {str(e)}")
 
@@ -72,8 +80,8 @@ class AnthropicClient(LLMClient):
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
 
-    def generate_response(self, prompt: str, context: str = "", **kwargs) -> str:
-        """Tạo response từ Anthropic Claude"""
+    def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
+        """Tạo response từ Anthropic Claude và trả về cả usage."""
         system_message = self._create_system_message(context)
 
         try:
@@ -86,7 +94,15 @@ class AnthropicClient(LLMClient):
                     {"role": "user", "content": prompt}
                 ]
             )
-            return response.content[0].text
+            usage = response.usage
+            usage_dict = {
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+                "total_tokens": usage.input_tokens + usage.output_tokens,
+                "model_name": self.model,
+                "provider": "anthropic"
+            }
+            return response.content[0].text, usage_dict
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")
 
@@ -153,8 +169,8 @@ class LLMManager:
             except ValueError:
                 pass
 
-    def generate_response(self, prompt: str, context: str = "", provider: str = None, **kwargs) -> str:
-        """Tạo response với fallback logic và lựa chọn provider"""
+    def generate_response(self, prompt: str, context: str = "", provider: str = None, **kwargs) -> tuple[str, dict]:
+        """Tạo response với fallback logic và lựa chọn provider, trả về cả usage."""
 
         # Nếu provider được chỉ định, chỉ dùng provider đó
         if provider:
@@ -181,6 +197,7 @@ class LLMManager:
                 last_error = e
                 continue
 
+        # Nếu tất cả đều lỗi, trả về lỗi cuối cùng
         raise Exception(f"All LLM clients failed. Last error: {str(last_error)}")
 
     def is_available(self) -> bool:

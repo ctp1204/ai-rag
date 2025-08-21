@@ -50,6 +50,23 @@ def init_db():
     )
     """)
 
+    # Bảng theo dõi token usage
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS token_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        session_id TEXT,
+        category TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT,
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        total_tokens INTEGER DEFAULT 0,
+        timestamp DATETIME NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+    """)
+
     conn.commit()
     conn.close()
     print("Database initialized successfully.")
@@ -80,6 +97,76 @@ def get_all_users():
     users = conn.execute("SELECT id, username, role FROM users ORDER BY username").fetchall()
     conn.close()
     return users
+
+# --- Token Usage Functions ---
+def add_token_usage(user_id: int, category: str, provider: str, model: str, input_tokens: int, output_tokens: int, session_id: Optional[str] = None):
+    """Ghi lại thông tin sử dụng token."""
+    conn = get_db_connection()
+    timestamp = datetime.now()
+    total_tokens = input_tokens + output_tokens
+    conn.execute("""
+        INSERT INTO token_usage (user_id, session_id, category, provider, model, input_tokens, output_tokens, total_tokens, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, session_id, category, provider, model, input_tokens, output_tokens, total_tokens, timestamp))
+    conn.commit()
+    conn.close()
+
+def get_token_usage_summary(user_id: Optional[int] = None, category: Optional[str] = None, provider: Optional[str] = None):
+    """Lấy tóm tắt lịch sử sử dụng token, có thể lọc."""
+    conn = get_db_connection()
+
+    query = """
+        SELECT
+            u.username,
+            tu.category,
+            tu.provider,
+            SUM(tu.total_tokens) as total_tokens,
+            MAX(tu.timestamp) as last_used
+        FROM token_usage tu
+        JOIN users u ON tu.user_id = u.id
+    """
+
+    conditions = []
+    params = []
+
+    if user_id:
+        conditions.append("tu.user_id = ?")
+        params.append(user_id)
+    if category:
+        conditions.append("tu.category = ?")
+        params.append(category)
+    if provider:
+        conditions.append("tu.provider = ?")
+        params.append(provider)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " GROUP BY u.username, tu.category, tu.provider ORDER BY last_used DESC"
+
+    rows = conn.execute(query, tuple(params)).fetchall()
+    conn.close()
+
+    summary = []
+    for row in rows:
+        row_dict = dict(row)
+        row_dict['last_used'] = datetime.fromisoformat(row_dict['last_used'])
+        summary.append(row_dict)
+
+    return summary
+
+def get_distinct_token_usage_filters():
+    """Lấy các giá trị duy nhất cho bộ lọc token."""
+    conn = get_db_connection()
+    users = conn.execute("SELECT id, username FROM users ORDER BY username").fetchall()
+    categories = conn.execute("SELECT DISTINCT category FROM token_usage ORDER BY category").fetchall()
+    providers = conn.execute("SELECT DISTINCT provider FROM token_usage ORDER BY provider").fetchall()
+    conn.close()
+    return {
+        "users": [dict(row) for row in users],
+        "categories": [row['category'] for row in categories],
+        "providers": [row['provider'] for row in providers]
+    }
 
 # History functions
 def add_qa_history(user_id, evaluation, domain: Optional[str] = None, domain_title: Optional[str] = None):

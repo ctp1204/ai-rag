@@ -19,11 +19,12 @@ class RAGPipeline:
         if not self.llm_manager.is_available():
             logger.warning("No LLM clients available. Please configure API keys.")
 
-    def query(self, question: str, use_fallback: bool = True, **kwargs) -> Dict[str, Any]:
+    def query(self, user_id: int, question: str, use_fallback: bool = True, **kwargs) -> Dict[str, Any]:
         """
         Main query method với logic fallback
 
         Args:
+            user_id: ID của người dùng để ghi log token
             question: Câu hỏi từ user
             use_fallback: Có sử dụng LLM API khi không tìm thấy dữ liệu local không
             **kwargs: Các tham số khác cho LLM
@@ -56,7 +57,7 @@ class RAGPipeline:
                     for doc in found_documents
                 ])
 
-                response = self.llm_manager.generate_response(
+                response, usage_data = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
                     provider=kwargs.pop('provider', None),
@@ -64,12 +65,17 @@ class RAGPipeline:
                 )
                 response_metadata['source'] = 'local_rag'
 
+                # Ghi lại token usage
+                from . import database as db
+                db.add_token_usage(user_id, "Chat", usage_data['provider'], usage_data['model_name'], usage_data['input_tokens'], usage_data['output_tokens'])
+
+
             elif use_fallback and self.llm_manager.is_available():
                 # Không có dữ liệu local -> fallback to LLM API
                 logger.info("No relevant local data found, using fallback LLM")
 
                 relevant_context = "" # Đảm bảo context rỗng
-                response = self.llm_manager.generate_response(
+                response, usage_data = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
                     provider=kwargs.pop('provider', None),
@@ -77,6 +83,10 @@ class RAGPipeline:
                 )
                 response_metadata['used_fallback'] = True
                 response_metadata['source'] = 'fallback_llm'
+
+                # Ghi lại token usage
+                from . import database as db
+                db.add_token_usage(user_id, "Chat", usage_data['provider'], usage_data['model_name'], usage_data['input_tokens'], usage_data['output_tokens'])
 
             else:
                 # Không có dữ liệu và không dùng fallback
