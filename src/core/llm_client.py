@@ -11,6 +11,10 @@ class LLMClient(ABC):
     def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
         pass
 
+    @abstractmethod
+    def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
+        pass
+
 class OpenAIClient(LLMClient):
     """OpenAI API client"""
 
@@ -51,6 +55,27 @@ class OpenAIClient(LLMClient):
             return response.choices[0].message.content, usage_dict
         except Exception as e:
             raise Exception(f"OpenAI API error: {str(e)}")
+
+    def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
+        """Tạo response stream từ OpenAI."""
+        system_message = self._create_system_message(context)
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": prompt}
+        ]
+        try:
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=kwargs.get('temperature', 0.7),
+                max_tokens=kwargs.get('max_tokens', 1000),
+                stream=True
+            )
+            for chunk in stream:
+                content = chunk.choices[0].delta.content or ""
+                yield content
+        except Exception as e:
+            raise Exception(f"OpenAI API streaming error: {str(e)}")
 
     def _create_system_message(self, context: str) -> str:
         """Tạo system message với context"""
@@ -106,6 +131,22 @@ class AnthropicClient(LLMClient):
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")
 
+    def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
+        """Tạo response stream từ Anthropic Claude."""
+        system_message = self._create_system_message(context)
+        try:
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=kwargs.get('max_tokens', 1000),
+                temperature=kwargs.get('temperature', 0.7),
+                system=system_message,
+                messages=[{"role": "user", "content": prompt}]
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+        except Exception as e:
+            raise Exception(f"Anthropic API streaming error: {str(e)}")
+
     def _create_system_message(self, context: str) -> str:
         """Tạo system message với context"""
         if context:
@@ -157,6 +198,15 @@ class LLMManager:
             return client.generate_response(prompt, context, **kwargs)
         except Exception as e:
             # Gói lại lỗi để cung cấp thêm ngữ cảnh
+            raise Exception(f"Error with LLM provider '{provider_to_use}': {str(e)}") from e
+
+    def generate_streaming_response(self, prompt: str, context: str = "", provider: Optional[str] = None, **kwargs):
+        """Tạo response stream từ một provider cụ thể."""
+        provider_to_use = provider or settings.default_provider
+        try:
+            client = create_llm_client(provider_to_use)
+            return client.generate_streaming_response(prompt, context, **kwargs)
+        except Exception as e:
             raise Exception(f"Error with LLM provider '{provider_to_use}': {str(e)}") from e
 
     def is_available(self) -> bool:

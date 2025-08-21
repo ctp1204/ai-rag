@@ -93,7 +93,7 @@ function loadDocumentList() {
    });
 }
 
-function sendMessage() {
+async function sendMessage() {
     const question = $('#question-input').val().trim();
     if (!question) return;
 
@@ -103,30 +103,52 @@ function sendMessage() {
     addMessageToChat('user', question);
     $('#question-input').val('');
 
-    // Show loading message for bot
-    const loadingId = addMessageToChat('bot', '<i class="fas fa-spinner fa-spin"></i> Đang suy nghĩ...');
+    // Add a placeholder for the bot's response
+    const botMessageId = addMessageToChat('bot', '');
+    const botMessageElement = document.getElementById(botMessageId).querySelector('.message-content');
 
-    // Send request
-    $.ajax({
-        url: '/api/query',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            question: question,
-            use_fallback: useFallback
-            // Provider sẽ được tự động lấy từ session ở backend
-        }),
-        success: function(data) {
-            // Remove loading message and add new response
-            $('#' + loadingId).remove();
-            addMessageToChat('bot', data.response, data.metadata);
-        },
-        error: function(xhr) {
-            // Remove loading message and add error
-            $('#' + loadingId).remove();
-            addMessageToChat('bot', 'Xin lỗi, đã có lỗi xảy ra: ' + (xhr.responseJSON?.detail || 'Lỗi không xác định'));
+    try {
+        const response = await fetch('/api/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: question,
+                use_fallback: useFallback
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-    });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            fullResponse += chunk;
+
+            // Use marked.parse to render Markdown in real-time
+            botMessageElement.innerHTML = marked.parse(fullResponse);
+
+            // Scroll to bottom
+            const container = $('#chat-container')[0];
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Enhance code blocks after streaming is complete
+        enhanceCodeBlocks(botMessageId);
+
+    } catch (error) {
+        botMessageElement.innerHTML = 'Xin lỗi, đã có lỗi xảy ra khi kết nối với máy chủ.';
+        console.error('Streaming Error:', error);
+    }
 }
 
 
@@ -135,8 +157,8 @@ function addMessageToChat(sender, message, metadata = null) {
     const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
     const senderName = sender === 'user' ? 'Bạn' : 'AI Assistant';
 
-    // If the message is from the bot, parse it as Markdown
-    const messageContent = (sender === 'bot') ? marked.parse(message) : message;
+    // For streaming, the message content is handled separately
+    const messageContent = (sender === 'user') ? message : '<span class="message-content"></span>';
 
     let sourceHtml = '';
     if (metadata && metadata.source) {

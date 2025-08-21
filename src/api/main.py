@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi import Depends
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -270,22 +270,29 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.post("/api/query")
 async def query(request: QueryRequest, user: dict = Depends(get_current_user)):
-    """API endpoint để hỏi đáp"""
+    """API endpoint để hỏi đáp (bây giờ là streaming)."""
     try:
-        # Ưu tiên provider từ request, sau đó là session, cuối cùng là default
-        provider_to_use = request.provider or user.get('provider')
+        provider_to_use = user.get('provider')
 
-        result = rag_pipeline.query(
-            user_id=user['id'],
-            question=request.question,
-            use_fallback=request.use_fallback,
-            provider=provider_to_use
-        )
-        # Lấy nguồn đã được xác định từ pipeline và đưa lên cấp cao nhất
-        result['source'] = result.get('metadata', {}).get('source', 'Không xác định')
-        return result
+        def stream_wrapper():
+            # Ghi log token usage sẽ cần được xử lý riêng, vì chúng ta không có usage_data ở đây
+            # Có thể ghi log sau khi stream kết thúc ở client, hoặc ước tính.
+            # Hiện tại, tạm thời bỏ qua ghi log token cho streaming để đơn giản hóa.
+            yield from rag_pipeline.stream_query(
+                user_id=user['id'],
+                question=request.question,
+                use_fallback=request.use_fallback,
+                provider=provider_to_use
+            )
+
+        return StreamingResponse(stream_wrapper(), media_type="text/event-stream")
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # StreamingResponse không thể raise HTTPException theo cách thông thường
+        # Cần một cơ chế xử lý lỗi khác nếu cần
+        async def error_stream():
+            yield f"Error: {str(e)}"
+        return StreamingResponse(error_stream(), media_type="text/event-stream", status_code=500)
 
 @app.post("/api/upload-file")
 async def upload_file(file: UploadFile = File(...), title: str = Form(None)):
