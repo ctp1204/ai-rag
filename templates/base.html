@@ -90,7 +90,7 @@
             <a class="navbar-brand" href="/">
                 <i class="fas fa-robot"></i> DXAI Solutions
             </a>
-            <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto d-flex align-items-center">
                 {% if user %}
                     <a class="nav-link" href="/"><i class="fas fa-comments"></i> Trò chuyện</a>
                     <a class="nav-link" href="/qa"><i class="fas fa-graduation-cap"></i> Luyện tập</a>
@@ -98,6 +98,16 @@
                     {% if user.role == 'admin' %}
                     <a class="nav-link" href="/admin"><i class="fas fa-cogs"></i> Quản lý</a>
                     {% endif %}
+
+                    <!-- Provider Selector -->
+                    <div class="nav-item me-2">
+                         <select class="form-select form-select-sm" id="provider-selector" aria-label="Select LLM Provider">
+                            <option value="openai" {% if user.provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                            <option value="google" {% if user.provider == 'google' %}selected{% endif %}>Google</option>
+                            <!-- Thêm các provider khác nếu có -->
+                        </select>
+                    </div>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user"></i>  {{ user.username }}
@@ -124,6 +134,7 @@
     {% block scripts %}{% endblock %}
     <script>
         $(document).ready(function() {
+            // Logout functionality
             $('#logout-btn').click(function(e) {
                 e.preventDefault();
                 $.ajax({
@@ -134,6 +145,28 @@
                     },
                     error: function() {
                         alert('Đăng xuất thất bại.');
+                    }
+                });
+            });
+
+            // Provider selector functionality
+            $('#provider-selector').change(function() {
+                const selectedProvider = $(this).val();
+                $.ajax({
+                    url: '/api/set-provider',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ provider: selectedProvider }),
+                    success: function(response) {
+                        console.log(response.message);
+                        // Tùy chọn: reload lại trang để áp dụng thay đổi ở mọi nơi
+                        // Hoặc hiển thị thông báo thành công
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Lỗi khi đổi nhà cung cấp: ' + xhr.responseJSON.detail);
+                        // Quay lại giá trị cũ nếu có lỗi
+                        location.reload();
                     }
                 });
             });

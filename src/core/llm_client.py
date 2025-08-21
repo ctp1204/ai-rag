@@ -137,69 +137,41 @@ def create_llm_client(provider: str = None) -> LLMClient:
         raise ValueError(f"Unsupported LLM provider: {provider}")
 
 class LLMManager:
-    """Manager để quản lý LLM client với fallback logic"""
+    """Manager để quản lý và tạo các LLM client."""
 
-    def __init__(self, primary_client: Optional[LLMClient] = None):
-        self.primary_client = primary_client
-        self.fallback_clients = []
+    def __init__(self):
+        """Khởi tạo LLMManager."""
+        # Kiểm tra xem có ít nhất một API key được cấu hình không
+        if not self.get_available_providers():
+            raise ValueError("No LLM API keys configured. Please set at least one in the .env file.")
 
-        # Tự động tạo clients nếu có API keys
-        if not self.primary_client:
-            try:
-                self.primary_client = create_llm_client()
-            except ValueError:
-                pass
+    def generate_response(self, prompt: str, context: str = "", provider: Optional[str] = None, **kwargs) -> tuple[str, dict]:
+        """
+        Tạo response từ một provider cụ thể.
+        Nếu provider không được chỉ định, sử dụng provider mặc định từ settings.
+        """
+        provider_to_use = provider or settings.default_provider
 
-        # Thêm fallback clients
-        self._setup_fallback_clients()
-
-    def _setup_fallback_clients(self):
-        """Thiết lập fallback clients"""
-        # Thử tạo OpenAI client nếu không phải primary
-        if settings.openai_api_key and (not self.primary_client or settings.llm_provider != "openai"):
-            try:
-                self.fallback_clients.append(OpenAIClient())
-            except ValueError:
-                pass
-
-        # Thử tạo Anthropic client nếu không phải primary
-        if settings.anthropic_api_key and (not self.primary_client or settings.llm_provider != "anthropic"):
-            try:
-                self.fallback_clients.append(AnthropicClient())
-            except ValueError:
-                pass
-
-    def generate_response(self, prompt: str, context: str = "", provider: str = None, **kwargs) -> tuple[str, dict]:
-        """Tạo response với fallback logic và lựa chọn provider, trả về cả usage."""
-
-        # Nếu provider được chỉ định, chỉ dùng provider đó
-        if provider:
-            try:
-                client = create_llm_client(provider)
-                return client.generate_response(prompt, context, **kwargs)
-            except Exception as e:
-                raise Exception(f"Error with specified provider {provider}: {str(e)}")
-
-        # Nếu không, dùng logic fallback mặc định
-        clients_to_try = []
-        if self.primary_client:
-            clients_to_try.append(self.primary_client)
-        clients_to_try.extend(self.fallback_clients)
-
-        if not clients_to_try:
-            raise Exception("No LLM clients available. Please configure API keys.")
-
-        last_error = None
-        for client in clients_to_try:
-            try:
-                return client.generate_response(prompt, context, **kwargs)
-            except Exception as e:
-                last_error = e
-                continue
-
-        # Nếu tất cả đều lỗi, trả về lỗi cuối cùng
-        raise Exception(f"All LLM clients failed. Last error: {str(last_error)}")
+        try:
+            client = create_llm_client(provider_to_use)
+            return client.generate_response(prompt, context, **kwargs)
+        except Exception as e:
+            # Gói lại lỗi để cung cấp thêm ngữ cảnh
+            raise Exception(f"Error with LLM provider '{provider_to_use}': {str(e)}") from e
 
     def is_available(self) -> bool:
-        """Kiểm tra xem có LLM client nào available không"""
-        return self.primary_client is not None or len(self.fallback_clients) > 0
+        """Kiểm tra xem có bất kỳ provider nào có sẵn không."""
+        return bool(self.get_available_providers())
+
+    def get_available_providers(self) -> list[str]:
+        """Lấy danh sách các provider có sẵn dựa trên API keys."""
+        providers = []
+        if settings.openai_api_key:
+            providers.append("openai")
+        if settings.google_api_key:
+            providers.append("google")
+        if settings.anthropic_api_key:
+            providers.append("anthropic")
+
+        # Đảm bảo không có provider nào bị trùng
+        return list(set(providers))

@@ -248,7 +248,7 @@ class QAGenerator:
 
 
 
-    def evaluate_answers(self, user_id: int, questions: List[Dict[str, Any]], user_answers: List[str]) -> Dict[str, Any]:
+    def evaluate_answers(self, user_id: int, questions: List[Dict[str, Any]], user_answers: List[str], provider: Optional[str] = None) -> Dict[str, Any]:
         """Đánh giá câu trả lời của user"""
         if len(questions) != len(user_answers):
             raise ValueError("Số câu hỏi và câu trả lời không khớp")
@@ -260,7 +260,13 @@ class QAGenerator:
             correct_answer = question['correct_answer']
 
             # Tính điểm cho câu trả lời
-            score = self._calculate_answer_score(user_id, user_answer, correct_answer, session_id=question.get('session_id'))
+            score = self._calculate_answer_score(
+                user_id=user_id,
+                user_answer=user_answer,
+                correct_answer=correct_answer,
+                session_id=question.get('session_id'),
+                provider=provider
+            )
 
             # Tạo feedback
             feedback = self._generate_feedback(user_answer, correct_answer, score)
@@ -291,7 +297,7 @@ class QAGenerator:
             'overall_feedback': overall_feedback
         }
 
-    def _calculate_answer_score(self, user_id: int, user_answer: str, correct_answer: str, session_id: Optional[str] = None) -> float:
+    def _calculate_answer_score(self, user_id: int, user_answer: str, correct_answer: str, session_id: Optional[str] = None, provider: Optional[str] = None) -> float:
         """
         Tính điểm cho câu trả lời bằng cách sử dụng LLM để so sánh ngữ nghĩa.
         """
@@ -330,7 +336,7 @@ class QAGenerator:
 
         try:
             if self.llm_manager.is_available():
-                response_text, usage_data = self.llm_manager.generate_response(prompt, context="")
+                response_text, usage_data = self.llm_manager.generate_response(prompt, context="", provider=provider)
 
                 # Ghi lại token usage
                 from . import database as db

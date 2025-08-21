@@ -34,16 +34,6 @@
                             </select>
                         </div>
 
-                        <div class="mt-3">
-                            <label for="provider-select" class="form-label">Model provider:</label>
-                            <select id="provider-select" class="form-select w-auto mx-auto">
-                                <option value="">Mặc định</option>
-                                <option value="openai">OpenAI (GPT)</option>
-                                <option value="anthropic">Anthropic (Claude)</option>
-                                <option value="google" selected>Google (Gemini)</option>
-                            </select>
-                        </div>
-
                         <button class="btn btn-primary btn-lg mt-4" id="start-quiz-btn">
                             <i class="fas fa-play"></i> Bắt đầu kiểm tra
                         </button>
@@ -153,25 +143,19 @@ $(document).ready(function() {
 function startQuiz() {
     const numQuestions = parseInt($('#num-questions').val());
     const sourceDocument = $('#source-document-select').val();
-    const provider = $('#provider-select').val();
 
     // Show loading
     showScreen('loading-screen', 'Đang tạo câu hỏi...');
 
     // Generate questions
-    let ajaxData = {
-        num_questions: numQuestions,
-        source_document: sourceDocument
-    };
-
-    if (provider) {
-        ajaxData.provider = provider;
-    }
-
     $.ajax({
         url: '/api/qa/generate',
         method: 'GET',
-        data: ajaxData,
+        data: {
+            num_questions: numQuestions,
+            source_document: sourceDocument
+            // Provider sẽ được tự động lấy từ session ở backend
+        },
         success: function(data) {
             if (!data.questions || data.questions.length === 0) {
                 alert('Không thể tạo câu hỏi. Vui lòng thử lại với lĩnh vực khác hoặc đảm bảo tài liệu có đủ nội dung.');

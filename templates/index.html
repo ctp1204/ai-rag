@@ -30,12 +30,6 @@
                                 Sử dụng AI tổng quát khi không tìm thấy dữ liệu
                             </label>
                         </div>
-                        <div class="col-md-4">
-                            <select id="provider-select" class="form-select form-select-sm">
-                                <option value="google" selected>Google Gemini</option>
-                                <option value="openai">OpenAI GPT</option>
-                            </select>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -104,7 +98,6 @@ function sendMessage() {
     if (!question) return;
 
     const useFallback = $('#use-fallback').is(':checked');
-    const provider = $('#provider-select').val();
 
     // Add user message to chat
     addMessageToChat('user', question);
@@ -120,8 +113,8 @@ function sendMessage() {
         contentType: 'application/json',
         data: JSON.stringify({
             question: question,
-            use_fallback: useFallback,
-            provider: provider
+            use_fallback: useFallback
+            // Provider sẽ được tự động lấy từ session ở backend
         }),
         success: function(data) {
             // Remove loading message and add new response

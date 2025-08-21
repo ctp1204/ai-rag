@@ -19,7 +19,7 @@ class RAGPipeline:
         if not self.llm_manager.is_available():
             logger.warning("No LLM clients available. Please configure API keys.")
 
-    def query(self, user_id: int, question: str, use_fallback: bool = True, **kwargs) -> Dict[str, Any]:
+    def query(self, user_id: int, question: str, use_fallback: bool = True, provider: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Main query method với logic fallback
 
@@ -27,6 +27,7 @@ class RAGPipeline:
             user_id: ID của người dùng để ghi log token
             question: Câu hỏi từ user
             use_fallback: Có sử dụng LLM API khi không tìm thấy dữ liệu local không
+            provider: Nhà cung cấp LLM để sử dụng
             **kwargs: Các tham số khác cho LLM
 
         Returns:
@@ -60,7 +61,7 @@ class RAGPipeline:
                 response, usage_data = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
-                    provider=kwargs.pop('provider', None),
+                    provider=provider,
                     **kwargs
                 )
                 response_metadata['source'] = 'local_rag'
@@ -78,7 +79,7 @@ class RAGPipeline:
                 response, usage_data = self.llm_manager.generate_response(
                     prompt=question,
                     context=relevant_context,
-                    provider=kwargs.pop('provider', None),
+                    provider=provider,
                     **kwargs
                 )
                 response_metadata['used_fallback'] = True

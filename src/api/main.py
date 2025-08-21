@@ -79,11 +79,17 @@ class RegisterRequest(BaseModel):
     username: str
     password: str
 
+class ProviderRequest(BaseModel):
+    provider: str
+
 # Dependency to get current user
 def get_current_user(request: Request):
     user_info = request.session.get('user')
     if not user_info:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Thêm provider đã chọn vào thông tin user để dễ truy cập
+    user_info['provider'] = request.session.get('provider', settings.default_provider)
     return user_info
 
 # Dependency for admin users
@@ -266,11 +272,14 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def query(request: QueryRequest, user: dict = Depends(get_current_user)):
     """API endpoint để hỏi đáp"""
     try:
+        # Ưu tiên provider từ request, sau đó là session, cuối cùng là default
+        provider_to_use = request.provider or user.get('provider')
+
         result = rag_pipeline.query(
             user_id=user['id'],
             question=request.question,
             use_fallback=request.use_fallback,
-            provider=request.provider
+            provider=provider_to_use
         )
         # Lấy nguồn đã được xác định từ pipeline và đưa lên cấp cao nhất
         result['source'] = result.get('metadata', {}).get('source', 'Không xác định')
@@ -376,12 +385,15 @@ async def generate_questions(user: dict = Depends(get_current_user), num_questio
         if num_questions < 1 or num_questions > 10:
             raise HTTPException(status_code=400, detail="Số câu hỏi phải từ 1 đến 10")
 
+        # Ưu tiên provider từ request, sau đó là session
+        provider_to_use = provider or user.get('provider')
+
         # Tạo câu hỏi từ dữ liệu thực, có thể lọc theo tài liệu nguồn
         questions = qa_generator.generate_questions(
             user_id=user['id'],
             num_questions=num_questions,
             source_document=source_document if source_document and source_document != 'all' else None,
-            provider=provider
+            provider=provider_to_use
         )
 
         # Tạo session ID để lưu trữ câu hỏi
@@ -422,8 +434,16 @@ async def evaluate_answers(request: QAEvaluationRequest, user: dict = Depends(ge
         if len(questions) != len(request.user_answers):
             raise HTTPException(status_code=400, detail="Số câu trả lời không khớp với số câu hỏi")
 
+        # Lấy provider từ session để đảm bảo tính nhất quán
+        provider_to_use = user.get('provider')
+
         # Đánh giá câu trả lời
-        evaluation = qa_generator.evaluate_answers(user['id'], questions, request.user_answers)
+        evaluation = qa_generator.evaluate_answers(
+            user_id=user['id'],
+            questions=questions,
+            user_answers=request.user_answers,
+            provider=provider_to_use
+        )
 
         # Thêm thông tin về nguồn dữ liệu
         evaluation['data_info'] = {
@@ -492,8 +512,18 @@ async def register(register_request: RegisterRequest):
 @app.get("/api/logout")
 async def logout(request: Request):
     """API endpoint để đăng xuất"""
-    request.session.pop('user', None)
+    request.session.clear() # Xóa toàn bộ session để đảm bảo sạch sẽ
     return {"message": "Logout successful"}
+
+@app.post("/api/set-provider")
+async def set_provider(req: ProviderRequest, request: Request, user: dict = Depends(get_current_user)):
+    """Lưu provider người dùng chọn vào session."""
+    # Kiểm tra xem provider có hợp lệ không (lấy từ llm_manager)
+    if req.provider not in rag_pipeline.llm_manager.get_available_providers():
+        raise HTTPException(status_code=400, detail="Invalid provider specified.")
+
+    request.session['provider'] = req.provider
+    return {"message": f"Provider set to {req.provider}"}
 
 @app.get("/api/documents")
 async def list_documents(user: dict = Depends(get_current_user)):

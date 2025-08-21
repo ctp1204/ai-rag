@@ -45,7 +45,15 @@
                 {% for usage in usage_data %}
                 <tr>
                     <td>{{ usage.username }}</td>
-                    <td>{{ usage.provider }}</td>
+                    <td>
+                        {% if usage.provider == 'openai' %}
+                            <span class="badge bg-primary me-1">{{ usage.provider }}</span>
+                        {% elif usage.provider == 'google' %}
+                            <span class="badge bg-info me-1">{{ usage.provider }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary me-1">{{ usage.provider }}</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% for cat in usage.category_summary %}
                             <span class="badge {{ cat.class }} me-1">
