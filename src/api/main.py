@@ -117,17 +117,20 @@ async def admin(request: Request, user: dict = Depends(get_admin_user)):
 async def token_usage_page(
     request: Request,
     user: dict = Depends(get_admin_user),
-    f_user: Optional[int] = None,
-    f_category: Optional[str] = None,
-    f_provider: Optional[str] = None
+    f_user: Optional[str] = None,  # Tạm thời nhận là string để xử lý giá trị rỗng
+    f_provider: Optional[str] = "openai"
 ):
     """Trang quản lý token usage với bộ lọc và gom nhóm."""
     from collections import defaultdict
 
+    # Chuyển đổi f_user rỗng thành None để query DB
+    user_id_filter = int(f_user) if f_user and f_user.isdigit() else None
+
     # Lấy dữ liệu gốc, chưa gom nhóm
+    # Bỏ category khỏi bộ lọc
     raw_usage_data = db.get_token_usage_summary(
-        user_id=f_user,
-        category=f_category,
+        user_id=user_id_filter,
+        category=None,
         provider=f_provider
     )
 
@@ -180,8 +183,7 @@ async def token_usage_page(
         "usage_data": usage_data,
         "filters": filter_data,
         "current_filters": {
-            "user": f_user,
-            "category": f_category,
+            "user": user_id_filter,
             "provider": f_provider
         },
         "user": user
