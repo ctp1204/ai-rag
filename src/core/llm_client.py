@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any
 from abc import ABC, abstractmethod
 import openai
 import anthropic
+import google.generativeai as genai
 from config import settings
 
 class LLMClient(ABC):
@@ -21,22 +22,13 @@ class OpenAIClient(LLMClient):
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or settings.openai_api_key
         self.model = model or "gpt-3.5-turbo"
-
         if not self.api_key:
             raise ValueError("OpenAI API key is required")
-
-        openai.api_key = self.api_key
         self.client = openai.OpenAI(api_key=self.api_key)
 
     def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
-        """Tạo response từ OpenAI và trả về cả usage."""
         system_message = self._create_system_message(context)
-
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": prompt}
-        ]
-
+        messages = [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}]
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -57,12 +49,8 @@ class OpenAIClient(LLMClient):
             raise Exception(f"OpenAI API error: {str(e)}")
 
     def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
-        """Tạo response stream từ OpenAI."""
         system_message = self._create_system_message(context)
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": prompt}
-        ]
+        messages = [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}]
         try:
             stream = self.client.chat.completions.create(
                 model=self.model,
@@ -78,7 +66,6 @@ class OpenAIClient(LLMClient):
             raise Exception(f"OpenAI API streaming error: {str(e)}")
 
     def _create_system_message(self, context: str) -> str:
-        """Tạo system message với context"""
         if context:
             return f"""Bạn là một AI assistant thông minh. Hãy trả lời câu hỏi dựa trên thông tin được cung cấp dưới đây.
 
@@ -99,25 +86,19 @@ class AnthropicClient(LLMClient):
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or settings.anthropic_api_key
         self.model = model or "claude-3-sonnet-20240229"
-
         if not self.api_key:
             raise ValueError("Anthropic API key is required")
-
         self.client = anthropic.Anthropic(api_key=self.api_key)
 
     def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
-        """Tạo response từ Anthropic Claude và trả về cả usage."""
         system_message = self._create_system_message(context)
-
         try:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=kwargs.get('max_tokens', 1000),
                 temperature=kwargs.get('temperature', 0.7),
                 system=system_message,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "user", "content": prompt}]
             )
             usage = response.usage
             usage_dict = {
@@ -132,7 +113,6 @@ class AnthropicClient(LLMClient):
             raise Exception(f"Anthropic API error: {str(e)}")
 
     def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
-        """Tạo response stream từ Anthropic Claude."""
         system_message = self._create_system_message(context)
         try:
             with self.client.messages.stream(
@@ -148,7 +128,6 @@ class AnthropicClient(LLMClient):
             raise Exception(f"Anthropic API streaming error: {str(e)}")
 
     def _create_system_message(self, context: str) -> str:
-        """Tạo system message với context"""
         if context:
             return f"""Bạn là một AI assistant thông minh. Hãy trả lời câu hỏi dựa trên thông tin được cung cấp dưới đây.
 
@@ -163,16 +142,74 @@ Hướng dẫn:
         else:
             return """Bạn là một AI assistant thông minh. Hãy trả lời câu hỏi bằng tiếng Việt một cách tự nhiên và hữu ích."""
 
+class GoogleClient(LLMClient):
+    """Google Gemini API client"""
+
+    def __init__(self, api_key: str = None, model: str = None):
+        self.api_key = api_key or settings.google_api_key
+        self.model_name = model or "gemini-2.5-flash-preview-05-20"
+        if not self.api_key:
+            raise ValueError("Google API key is required")
+        genai.configure(api_key=self.api_key)
+        self.model = genai.GenerativeModel(self.model_name)
+
+    def generate_response(self, prompt: str, context: str = "", **kwargs) -> tuple[str, dict]:
+        full_prompt = self._create_full_prompt(prompt, context)
+        try:
+            input_tokens = self.model.count_tokens(full_prompt).total_tokens
+            response = self.model.generate_content(full_prompt)
+            response_text = response.text
+            output_tokens = self.model.count_tokens(response_text).total_tokens
+            usage_dict = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "model_name": self.model_name,
+                "provider": "google"
+            }
+            return response_text, usage_dict
+        except Exception as e:
+            raise Exception(f"Google Gemini API error: {str(e)}")
+
+    def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
+        import time
+        import logging
+        full_prompt = self._create_full_prompt(prompt, context)
+        try:
+            response_iterator = self.model.generate_content(full_prompt, stream=True)
+            for chunk in response_iterator:
+                if chunk.text:
+                    logging.info(f"Received a large chunk from Google: '{chunk.text[:50]}...'")
+                    words = chunk.text.split(' ')
+                    for i, word in enumerate(words):
+                        yield word + (' ' if i < len(words) - 1 else '')
+                        time.sleep(0.05)
+        except Exception as e:
+            raise Exception(f"Google Gemini API streaming error: {str(e)}")
+
+    def _create_full_prompt(self, prompt: str, context: str) -> str:
+        if context:
+            return f"""Dựa vào thông tin được cung cấp dưới đây, hãy trả lời câu hỏi một cách tự nhiên và dễ hiểu.
+
+            THÔNG TIN LIÊN QUAN:
+            ---
+            {context}
+            ---
+
+            CÂU HỎI: {prompt}
+
+            TRẢ LỜI:"""
+        else:
+            return prompt
+
 def create_llm_client(provider: str = None) -> LLMClient:
     """Factory function để tạo LLM client"""
     provider = provider or settings.llm_provider
-
     if provider.lower() == "openai":
         return OpenAIClient()
     elif provider.lower() == "anthropic":
         return AnthropicClient()
     elif provider.lower() == "google":
-        from .google_client import GoogleClient
         return GoogleClient()
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
@@ -181,27 +218,18 @@ class LLMManager:
     """Manager để quản lý và tạo các LLM client."""
 
     def __init__(self):
-        """Khởi tạo LLMManager."""
-        # Kiểm tra xem có ít nhất một API key được cấu hình không
         if not self.get_available_providers():
             raise ValueError("No LLM API keys configured. Please set at least one in the .env file.")
 
     def generate_response(self, prompt: str, context: str = "", provider: Optional[str] = None, **kwargs) -> tuple[str, dict]:
-        """
-        Tạo response từ một provider cụ thể.
-        Nếu provider không được chỉ định, sử dụng provider mặc định từ settings.
-        """
         provider_to_use = provider or settings.default_provider
-
         try:
             client = create_llm_client(provider_to_use)
             return client.generate_response(prompt, context, **kwargs)
         except Exception as e:
-            # Gói lại lỗi để cung cấp thêm ngữ cảnh
             raise Exception(f"Error with LLM provider '{provider_to_use}': {str(e)}") from e
 
     def generate_streaming_response(self, prompt: str, context: str = "", provider: Optional[str] = None, **kwargs):
-        """Tạo response stream từ một provider cụ thể."""
         provider_to_use = provider or settings.default_provider
         try:
             client = create_llm_client(provider_to_use)
@@ -210,11 +238,9 @@ class LLMManager:
             raise Exception(f"Error with LLM provider '{provider_to_use}': {str(e)}") from e
 
     def is_available(self) -> bool:
-        """Kiểm tra xem có bất kỳ provider nào có sẵn không."""
         return bool(self.get_available_providers())
 
     def get_available_providers(self) -> list[str]:
-        """Lấy danh sách các provider có sẵn dựa trên API keys."""
         providers = []
         if settings.openai_api_key:
             providers.append("openai")
@@ -222,6 +248,4 @@ class LLMManager:
             providers.append("google")
         if settings.anthropic_api_key:
             providers.append("anthropic")
-
-        # Đảm bảo không có provider nào bị trùng
         return list(set(providers))
