@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import openai
 import anthropic
 import google.generativeai as genai
+import tiktoken
 from config import settings
 
 class LLMClient(ABC):
@@ -14,6 +15,10 @@ class LLMClient(ABC):
 
     @abstractmethod
     def generate_streaming_response(self, prompt: str, context: str = "", **kwargs):
+        pass
+
+    @abstractmethod
+    def count_tokens(self, text: str) -> int:
         pass
 
 class OpenAIClient(LLMClient):
@@ -64,6 +69,16 @@ class OpenAIClient(LLMClient):
                 yield content
         except Exception as e:
             raise Exception(f"OpenAI API streaming error: {str(e)}")
+
+    def count_tokens(self, text: str) -> int:
+        """Đếm số token cho OpenAI sử dụng thư viện tiktoken."""
+        try:
+            encoding = tiktoken.encoding_for_model(self.model)
+        except KeyError:
+            # Fallback cho các model không xác định
+            encoding = tiktoken.get_encoding("cl100k_base")
+
+        return len(encoding.encode(text))
 
     def _create_system_message(self, context: str) -> str:
         if context:
@@ -127,6 +142,11 @@ class AnthropicClient(LLMClient):
         except Exception as e:
             raise Exception(f"Anthropic API streaming error: {str(e)}")
 
+    def count_tokens(self, text: str) -> int:
+        # Anthropic doesn't expose a public token counter in their library.
+        # We'll use a word-based estimation.
+        return len(text.split())
+
     def _create_system_message(self, context: str) -> str:
         if context:
             return f"""Bạn là một AI assistant thông minh. Hãy trả lời câu hỏi dựa trên thông tin được cung cấp dưới đây.
@@ -187,6 +207,9 @@ class GoogleClient(LLMClient):
         except Exception as e:
             raise Exception(f"Google Gemini API streaming error: {str(e)}")
 
+    def count_tokens(self, text: str) -> int:
+        return self.model.count_tokens(text).total_tokens
+
     def _create_full_prompt(self, prompt: str, context: str) -> str:
         if context:
             return f"""Dựa vào thông tin được cung cấp dưới đây, hãy trả lời câu hỏi một cách tự nhiên và dễ hiểu.
@@ -236,6 +259,16 @@ class LLMManager:
             return client.generate_streaming_response(prompt, context, **kwargs)
         except Exception as e:
             raise Exception(f"Error with LLM provider '{provider_to_use}': {str(e)}") from e
+
+    def count_tokens(self, text: str, provider: Optional[str] = None) -> int:
+        """Đếm số token của một đoạn text sử dụng provider cụ thể."""
+        provider_to_use = provider or settings.default_provider
+        try:
+            client = create_llm_client(provider_to_use)
+            return client.count_tokens(text)
+        except Exception as e:
+            # Fallback to a simple word count if the tokenizer fails
+            return len(text.split())
 
     def is_available(self) -> bool:
         return bool(self.get_available_providers())

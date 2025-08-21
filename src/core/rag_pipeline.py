@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional, List
 import logging
 from .retrieval_engine import RetrievalEngine
-from .llm_client import LLMManager
+from .llm_client import LLMManager, create_llm_client
 from config import settings
 
 # Setup logging
@@ -112,44 +112,34 @@ class RAGPipeline:
     def stream_query(self, user_id: int, question: str, use_fallback: bool = True, provider: Optional[str] = None, **kwargs):
         """
         Query method với streaming response.
+        Việc ghi log token sẽ được xử lý bởi một endpoint riêng sau khi stream kết thúc.
         """
-        logger.info(f"Processing streaming query: {question}")
+        logger.info(f"Processing streaming query for user {user_id}: {question}")
         found_documents = self.retrieval_engine.search(question)
         has_local_data = bool(found_documents)
         relevant_context = ""
 
         try:
             if has_local_data:
-                logger.info(f"Found {len(found_documents)} relevant documents, generating streaming response with context")
+                logger.info(f"Found {len(found_documents)} docs, streaming with context.")
                 relevant_context = "\n\n".join([
                     f"[Nguồn: {doc.get('source', 'Không rõ')}]\n{doc['text']}"
                     for doc in found_documents
                 ])
-                stream = self.llm_manager.generate_streaming_response(
-                    prompt=question,
-                    context=relevant_context,
-                    provider=provider,
-                    **kwargs
+                yield from self.llm_manager.generate_streaming_response(
+                    prompt=question, context=relevant_context, provider=provider, **kwargs
                 )
-                for chunk in stream:
-                    yield chunk
 
             elif use_fallback and self.llm_manager.is_available():
-                logger.info("No relevant local data found, using fallback LLM for streaming")
-                stream = self.llm_manager.generate_streaming_response(
-                    prompt=question,
-                    context="",
-                    provider=provider,
-                    **kwargs
+                logger.info("No local data, using fallback LLM for streaming.")
+                yield from self.llm_manager.generate_streaming_response(
+                    prompt=question, context="", provider=provider, **kwargs
                 )
-                for chunk in stream:
-                    yield chunk
             else:
-                response = self._generate_no_data_response(question)
-                yield response
+                yield self._generate_no_data_response(question)
 
         except Exception as e:
-            logger.error(f"Error generating streaming response: {str(e)}")
+            logger.error(f"Error in stream_query: {str(e)}")
             yield f"Xin lỗi, đã có lỗi xảy ra: {str(e)}"
 
     def _generate_no_data_response(self, question: str) -> str:

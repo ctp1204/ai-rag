@@ -14,10 +14,14 @@ from pathlib import Path
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
+import logging
 from src.core.rag_pipeline import RAGPipeline
 from src.core.qa_generator import QAGenerator
 from src.core import database as db
+from src.core.llm_client import create_llm_client
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(title="RAG System", description="Retrieval-Augmented Generation System")
@@ -60,7 +64,12 @@ qa_generator = QAGenerator(rag_pipeline.retrieval_engine, rag_pipeline.llm_manag
 class QueryRequest(BaseModel):
     question: str
     use_fallback: bool = True
-    provider: Optional[str] = None
+
+class LogStreamUsageRequest(BaseModel):
+    provider: str
+    prompt: str
+    response: str
+    context: Optional[str] = ""
 
 class TextDocumentRequest(BaseModel):
     text: str
@@ -269,30 +278,19 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     raise exc
 
 @app.post("/api/query")
-async def query(request: QueryRequest, user: dict = Depends(get_current_user)):
-    """API endpoint để hỏi đáp (bây giờ là streaming)."""
-    try:
-        provider_to_use = user.get('provider')
+def query(request: QueryRequest, user: dict = Depends(get_current_user)):
+    """API endpoint để hỏi đáp (streaming)."""
+    provider_to_use = user.get('provider')
 
-        def stream_wrapper():
-            # Ghi log token usage sẽ cần được xử lý riêng, vì chúng ta không có usage_data ở đây
-            # Có thể ghi log sau khi stream kết thúc ở client, hoặc ước tính.
-            # Hiện tại, tạm thời bỏ qua ghi log token cho streaming để đơn giản hóa.
-            yield from rag_pipeline.stream_query(
-                user_id=user['id'],
-                question=request.question,
-                use_fallback=request.use_fallback,
-                provider=provider_to_use
-            )
-
-        return StreamingResponse(stream_wrapper(), media_type="text/event-stream")
-
-    except Exception as e:
-        # StreamingResponse không thể raise HTTPException theo cách thông thường
-        # Cần một cơ chế xử lý lỗi khác nếu cần
-        async def error_stream():
-            yield f"Error: {str(e)}"
-        return StreamingResponse(error_stream(), media_type="text/event-stream", status_code=500)
+    return StreamingResponse(
+        rag_pipeline.stream_query(
+            user_id=user['id'],
+            question=request.question,
+            use_fallback=request.use_fallback,
+            provider=provider_to_use
+        ),
+        media_type="text/event-stream"
+    )
 
 @app.post("/api/upload-file")
 async def upload_file(file: UploadFile = File(...), title: str = Form(None)):
@@ -521,6 +519,38 @@ async def logout(request: Request):
     """API endpoint để đăng xuất"""
     request.session.clear() # Xóa toàn bộ session để đảm bảo sạch sẽ
     return {"message": "Logout successful"}
+
+@app.post("/api/log-stream-usage")
+def log_stream_usage(request: LogStreamUsageRequest, user: dict = Depends(get_current_user)):
+    """Endpoint để ghi log token usage sau khi một stream hoàn tất."""
+    try:
+        # Tạo prompt đầy đủ để đếm token chính xác
+        client = create_llm_client(request.provider)
+        if hasattr(client, '_create_full_prompt'):
+            full_prompt = client._create_full_prompt(request.prompt, request.context)
+        else: # For OpenAI/Anthropic style
+            system_message = client._create_system_message(request.context)
+            full_prompt = system_message + "\n" + request.prompt
+
+        input_tokens = rag_pipeline.llm_manager.count_tokens(full_prompt, provider=request.provider)
+        output_tokens = rag_pipeline.llm_manager.count_tokens(request.response, provider=request.provider)
+
+        # Sửa lại cách lấy model name cho đúng
+        model_name = getattr(client, 'model_name', getattr(client, 'model', 'unknown'))
+
+        db.add_token_usage(
+            user_id=user['id'],
+            category="Chat",
+            provider=request.provider,
+            model=model_name,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens
+        )
+        logger.info(f"Successfully logged token usage for stream: {input_tokens} in, {output_tokens} out.")
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error logging stream usage: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/set-provider")
 async def set_provider(req: ProviderRequest, request: Request, user: dict = Depends(get_current_user)):

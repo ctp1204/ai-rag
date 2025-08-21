@@ -134,16 +134,16 @@ async function sendMessage() {
             const chunk = decoder.decode(value, { stream: true });
             fullResponse += chunk;
 
-            // Use marked.parse to render Markdown in real-time
             botMessageElement.innerHTML = marked.parse(fullResponse);
 
-            // Scroll to bottom
             const container = $('#chat-container')[0];
             container.scrollTop = container.scrollHeight;
         }
 
-        // Enhance code blocks after streaming is complete
         enhanceCodeBlocks(botMessageId);
+
+        // Sau khi stream kết thúc, gửi yêu cầu ghi log
+        logTokenUsage(question, fullResponse);
 
     } catch (error) {
         botMessageElement.innerHTML = 'Xin lỗi, đã có lỗi xảy ra khi kết nối với máy chủ.';
@@ -195,6 +195,28 @@ function addMessageToChat(sender, message, metadata = null) {
     }
 
     return messageId;
+}
+
+function logTokenUsage(prompt, response) {
+    // Lấy provider hiện tại từ dropdown trên header
+    const provider = $('#provider-selector').val();
+
+    $.ajax({
+        url: '/api/log-stream-usage',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            provider: provider,
+            prompt: prompt,
+            response: response
+        }),
+        success: function() {
+            console.log("Token usage logged successfully for the stream.");
+        },
+        error: function(xhr) {
+            console.error("Failed to log token usage:", xhr.responseJSON?.detail || 'Unknown error');
+        }
+    });
 }
 
 function enhanceCodeBlocks(messageId) {

@@ -32,3 +32,4 @@ pandas
 python-dotenv
 python-Levenshtein
 jinja2
+tiktoken
